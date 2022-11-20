@@ -1,0 +1,8 @@
+# File: A23.gas_subsector_shrwt_interp.csv
+# Title: subsector shareweights for subsectors that are fixed at calibration values
+# Units: unitless
+# Source: None (GCAM assumptions)
+# Column types: ccccccc
+# ----------
+region,supplysector,subsector,apply-to,from-year,to-year,interpolation-function
+USA,regional natural gas,domestic natural gas,share-weight,final-calibration-year,end-year,fixed

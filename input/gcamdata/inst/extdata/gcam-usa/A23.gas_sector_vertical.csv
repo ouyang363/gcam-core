@@ -1,0 +1,9 @@
+# File: A23.gas_sector_vertical.csv
+# Title: Vertical segment supplysector characteristics
+# Units: unitless
+# Source: None (GCAM assumptions)
+# Column types: ccccic
+# ----------
+supplysector,output.unit,input.unit,price.unit,logit.exponent,logit.type
+natural gas production,EJ,EJ,1975$/GJ,-3,relative-cost-logit
+regional natural gas,EJ,EJ,1975$/GJ,-6,relative-cost-logit
