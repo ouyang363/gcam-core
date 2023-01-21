@@ -95,6 +95,12 @@ module_energy_batch_en_supply_xml <- function(command, ...) {
     L239.CarbonCoef <- get_data(all_data, "L239.CarbonCoef")
     # ===================================================
 
+    # change US traded natural gas into natural gas production
+    # YO test Jan 10
+    L239.TechCoef_tra <- L239.TechCoef_tra %>%
+      mutate(minicam.energy.input = ifelse(technology == "USA traded natural gas",
+                                           "natural gas production", minicam.energy.input))
+
     # Produce outputs
     create_xml("en_supply.xml") %>%
       add_logit_tables_xml(L221.Supplysector_en, "Supplysector") %>%

@@ -22,36 +22,39 @@
 module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
   if(command == driver.DECLARE_INPUTS) {
     return(c(FILE = "gcam-usa/A23.gas_sector_vertical",
-             FILE = "gcam-usa/ETSAP_gas_cost_range",
-             FILE = "gcam-usa/BOEM_gas_cost",
-             FILE = "gcam-usa/A10.TechChange",
+             FILE = "energy/A10.TechChange",
              FILE = "gcam-usa/A10.subsector_interp",
-             FILE = "gcam-usa/A10.subsector_shrwt",
-             "L111.gas_supply_state_T_EJ",
-             "L111.gas_prod_state_T_Yh_EJ",
-             "L111.unconv_gas_supply_state_EJ"))
+             "L111.ResCurves_EJ_R_Ffos_USA",
+             "L111.Prod_EJ_R_F_Yh_USA",
+             "L210.RsrcPrice",
+             "L210.ResSubresourceProdLifetime",
+             "L210.SubresourcePriceAdder",
+             "L210.ResReserveTechLifetime",
+             "L210.ResReserveTechDeclinePhase",
+             "L210.ResReserveTechProfitShutdown"))
   } else if(command == driver.DECLARE_OUTPUTS) {
-    return(c("L211.PrimaryCO2Coef",
-             "L211.Depresource",
-             "L211.DepresourcePrice",
-             "L211.DepresourceCal",
-             "L211.DepresourceTechChange",
-             "L211.Grades",
-             "L211.Sector",
-             "L211.Subsector",
-             "L211.SubsShrwtFlt",
-             "L211.SubsInterpRule",
-             "L211.Subs_shrwt",
-             "L211.GlobalDBTechShrwt",
-             "L211.GlobalDBTechCoef",
-             "L211.TechCal",
-             "L211.TechStubs",
-             "L211.TNGTechProduction",
-             "L211.TNGTechCoef",
-             "L211.InterestRate_Offshore",
-             "L211.Pop_Offshore",
-             "L211.BaseGDP_Offshore",
-             "L211.LaborForceFillout_Offshore")) #
+    return(c("L211.PrimaryCO2Coef_USA",
+             "L211.Rsrc_F_USA",
+             "L211.RsrcPrice_F_USA",
+             "L211.RsrcCalProd_USA",
+             "L211.RsrcTechChange_USA",
+             "L211.RsrcCurves_fos_USA",
+             "L211.ResSubresourceProdLifetime_USA",
+             "L211.SubresourcePriceAdder_USA",
+             "L211.ReserveCalReserve_USA",
+             "L211.ResReserveTechLifetime_USA",
+             "L211.ResReserveTechDeclinePhase_USA",
+             "L211.ResReserveTechProfitShutdown_USA",
+             "L211.Sector_prod_USA",
+             "L211.Subsector_prod_USA",
+             "L211.SubsShrwtFlt_USA",
+             "L211.SubsInterpRule_USA",
+             "L211.TechShrwt_USA",
+             "L211.TechCoef_USA",
+             "L211.TechCal_USA",
+             "L211.TNGSubsectorLogit",
+             "L211.TNGTechProduction_USA",
+             "L211.TNGTechCoef_USA")) #
   } else if(command == driver.MAKE) {
 
     all_data <- list(...)[[1]]
@@ -66,44 +69,22 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
 
     # Load required inputs
     A23.gas_sector_vertical <- get_data(all_data, "gcam-usa/A23.gas_sector_vertical", strip_attributes = TRUE)
-    ETSAP_gas_cost_range <- get_data(all_data, "gcam-usa/ETSAP_gas_cost_range", strip_attributes = TRUE)
-    BOEM_gas_cost <- get_data(all_data, "gcam-usa/BOEM_gas_cost", strip_attributes = TRUE)
-    A10.TechChange <- get_data(all_data, "gcam-usa/A10.TechChange", strip_attributes = TRUE)
+    A10.TechChange <- get_data(all_data, "energy/A10.TechChange", strip_attributes = TRUE)
     A10.subsector_interp <- get_data(all_data, "gcam-usa/A10.subsector_interp", strip_attributes = TRUE)
-    A10.subsector_shrwt <- get_data(all_data, "gcam-usa/A10.subsector_shrwt", strip_attributes = TRUE)
-    L111.gas_supply_state_T_EJ <- get_data(all_data, "L111.gas_supply_state_T_EJ", strip_attributes = TRUE)
-    L111.gas_prod_state_T_Yh_EJ <- get_data(all_data, "L111.gas_prod_state_T_Yh_EJ", strip_attributes = TRUE)
-    L111.unconv_gas_supply_state_EJ <- get_data(all_data, "L111.unconv_gas_supply_state_EJ", strip_attributes = TRUE)
+    L111.ResCurves_EJ_R_Ffos_USA <- get_data(all_data, "L111.ResCurves_EJ_R_Ffos_USA", strip_attributes = TRUE)
+    L111.Prod_EJ_R_F_Yh_USA <- get_data(all_data, "L111.Prod_EJ_R_F_Yh_USA", strip_attributes = TRUE)
+    L210.RsrcPrice <- get_data(all_data, "L210.RsrcPrice", strip_attributes = TRUE)
+    L210.ResSubresourceProdLifetime <- get_data(all_data, "L210.ResSubresourceProdLifetime", strip_attributes = TRUE)
+    L210.SubresourcePriceAdder <- get_data(all_data, "L210.SubresourcePriceAdder", strip_attributes = TRUE)
+    L210.ResReserveTechLifetime <- get_data(all_data, "L210.ResReserveTechLifetime", strip_attributes = TRUE)
+    L210.ResReserveTechDeclinePhase <- get_data(all_data, "L210.ResReserveTechDeclinePhase", strip_attributes = TRUE)
+    L210.ResReserveTechProfitShutdown <- get_data(all_data, "L210.ResReserveTechProfitShutdown", strip_attributes = TRUE)
 
     # ===================================================
     # Perform computations
 
-    # NOTE: FUNCTION STILL NEEDS TO BE RE-WRITTEN IN DPLYR
-    compute_offshore_costs <- function( supply, costs ) {
-      ret.costs <- data.frame()
-      grades <- c( "grade.hist", "grade.1", "grade.2", "grade.3", "grade.max" )
-      supply$cumul.1 <- supply$grade.1
-      supply$cumul.2 <- supply$cumul.1 + supply$grade.2
-      supply$cumul.3 <- supply$cumul.2 + supply$grade.3
-      for( r in unique( costs$region ) ) {
-        costs.region <- subset( costs, region == r )
-        supply.region <- subset( supply, state == r )
-        lmfit <- lm( formula = price ~ sqrt( quantity ) + quantity, data=costs.region )
-        ret.costs.region <- data.frame( state=r, grade=grades, cost=0 )
-        min.cost <- min( costs.region$price ) + 1.5
-        ret.costs.region$cost[1] <- min.cost * 0.5
-        ret.costs.region$cost[2] <- min.cost * 0.9
-        ret.costs.region$cost[3] <- min.cost
-        ret.costs.region$cost[4:5] <- predict( lmfit, data.frame( quantity=c( supply.region$cumul.2, supply.region$cumul.3 ) ) )
-        # TODO: get better grasp of how "reserve adjustment factors" was taking into
-        # account.  They claim a value of 0.4.
-        ret.costs.region$cost[4] <- ret.costs.region$cost[4] * 0.6
-        ret.costs.region$cost[4] <- pmax( ret.costs.region$cost[4], ret.costs.region$cost[3] * 1.1 )
-        ret.costs.region$cost[5] <- ret.costs.region$cost[5] * 0.6
-        ret.costs <- rbind( ret.costs, ret.costs.region )
-      }
-      return(ret.costs)
-    }
+    # Part 1: construct XML structures for state-level resources
+    # -------------------------------------------------------------------------------------------
 
     # Structure for "natural gas production" supply sector
     L211.gas_prod_sector_name <- "natural gas production"
@@ -120,141 +101,172 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
              logit.year.fillout, logit.exponent, logit.type) -> L211.Supplysector_NGprod
 
 
-    # Need to create dummy socio-economics for offshore resource regions
-    L211.offshore_regions <- unique( BOEM_gas_cost$region )
-    L211.InterestRate_Offshore <- tibble( region = L211.offshore_regions,
-                                          interest.rate = socioeconomics.DEFAULT_INTEREST_RATE )
-
-    # L211.Pop_Offshore: Population
-    L211.InterestRate_Offshore %>%
-      as_tibble() %>%
-      repeat_add_columns(tibble("year" = MODEL_YEARS)) %>%
-      mutate(totalPop = 1) %>%
-      select(-interest.rate) -> L211.Pop_Offshore
-
-    # L211.BaseGDP_Offshore: Base GDP in Offshore resource regions
-    L211.BaseGDP_Offshore <- tibble( region = L211.offshore_regions, baseGDP = 1 )
-
-    # L211.LaborForceFillout_Offshore: labor force in the Offshore resource regions
-    L211.LaborForceFillout_Offshore <- tibble(
-      region = L211.offshore_regions,
-      year.fillout = min( MODEL_BASE_YEARS ),
-      laborforce = socioeconomics.DEFAULT_LABORFORCE
-    )
-
-    # Create resource supply curves
-
-    # L211.PrimaryCO2Coef: Add CO2 coefficients.
-    L111.gas_supply_state_T_EJ %>%
-      bind_rows(L111.unconv_gas_supply_state_EJ) %>%
-      distinct(state, resource, .keep_all = FALSE) %>%
-      mutate(co2.coef = 14.2) -> L211.PrimaryCO2Coef
-
-    # L211.Depresource: resource parameters
-    L211.PrimaryCO2Coef %>%
-      select(state, resource) %>%
+    # L211.Rsrc_F_USA: fossil resource parameters
+    L111.Prod_EJ_R_F_Yh_USA %>%
+      select(region, resource) %>%
+      distinct() %>%
       mutate(output.unit = "EJ",
              price.unit = "1975$/GJ",
-             market = state) -> L211.Depresource
-
-    L211.PrimaryCO2Coef %>%
-      select(state, resource) %>%
-      mutate(year = MODEL_BASE_YEARS[1],
-             price = 0.81) -> L211.DepresourcePrice
-
-    # L211.DepresourceTechChange: subresource technological change
-    L211.PrimaryCO2Coef %>%
-      select(state, resource) %>%
-      # use left_join because number of rows will be changed (copying to all years)
-      left_join(A10.TechChange %>% gather(year, value, -resource, -subresource), by = c("resource")) %>%
-      mutate(year = as.integer(year)) ->
-      L211.DepresourceTechChange
+             market = region) -> L211.Rsrc_F_USA
 
 
-    #L211.Grades: resource grades
+    # L211.RsrcPrice_F_USA
+    # copy USA historical resource price to all states
+    L111.Prod_EJ_R_F_Yh_USA %>%
+      filter(year %in% MODEL_BASE_YEARS) %>%
+      select(region, resource, year) %>%
+      distinct() %>%
+      left_join_error_no_match(L210.RsrcPrice %>%
+                                 filter(region == "USA" & resource == "natural gas") %>%
+                                 select(year, price), by = "year") -> L211.RsrcPrice_F_USA
 
-    # First need to specifiy resource costs
-    # Start with onshore cost esitmates
-    # Arbitrary but unless we care about historical prices it doesn't matter
-    ETSAP_gas_cost_range %>%
-      mutate(grade.hist = low_cost * 0.5,
-             grade.2 = ((high_cost - low_cost ) / 3) + low_cost) %>%
-      # Assume that all gas will be used up at a cost 5 times higher than high_cost
-      # TODO: better place for this assumptions
-      mutate(grade.max = high_cost * 5) %>%
-      gather(grade, cost, -type) %>%
-      mutate(grade = if_else(grade == "low_cost", "grade.1", grade),
-             grade = if_else(grade == "high_cost", "grade.3", grade)) %>%
-      rename(depresource = type) %>%
-      mutate(cost = cost * gdp_deflator(1975, 2008)) -> L211.GradeCost.onshore
+    # L211.RsrcTechChange_USA: resource technological change
+    L111.Prod_EJ_R_F_Yh_USA %>%
+      select(region, resource, reserve.subresource) %>%
+      distinct() %>%
+      # use core GCAM tech.change assumptions
+      # use left_join becuase we need to copy this to different years (so number of rows will change)
+      left_join(A10.TechChange %>% gather(year, techChange, -resource, -subresource), by = c("resource")) %>%
+      mutate(year.fillout = as.integer(year)) %>%
+      select(region, resource, reserve.subresource, year.fillout, techChange) ->
+      L211.RsrcTechChange_USA
 
-    # Offshore cost estimates are more detailed however we will just simply these
-    BOEM_gas_cost %>%
-      mutate(quantity = quantity * CONV_MMCF_EJ * 1e6,
-             price = (price * gdp_deflator(1975, 2005)) / (CONV_MMCF_EJ * 1e6) ) -> L211.GradeCost.offshore
+    # L211.RsrcCurves_fos_USA: resource grades and extraction costs
+    # this one has been created in level 1 data
+    L211.RsrcCurves_fos_USA <- L111.ResCurves_EJ_R_Ffos_USA
 
-    # NOTE:  compute_offshore_costs FUNCTION MUST BE RE-WRITTEN BEFORE THIS CAN BE RE-WRITTEN IN DPLYR
-    L211.GradeCost.offshore <- compute_offshore_costs( L111.gas_supply_state_T_EJ, L211.GradeCost.offshore )
-
-    L211.GradeCost.offshore %>%
-      mutate(depresource = "offshore gas") -> L211.GradeCost.offshore
-
-    # Duplicate costs by state and put on and off shore together
-    L111.gas_supply_state_T_EJ %>%
-      distinct(state) %>%
-      filter(!grepl( 'OCS', state )) -> onshore_states
-    L211.onshore_regions <- unique(onshore_states$state)
-
-    L211.GradeCost.onshore %>%
-      repeat_add_columns(tibble("state" = L211.onshore_regions)) %>%
-      select(state, depresource, grade, cost) -> L211.GradeCost
-
-    L111.unconv_gas_supply_state_EJ %>%
-      rename(depresource = resource, cost = extractioncost) %>%
-      select(state, depresource, grade, cost) -> L211.GradeCost.unconv
-
-    L211.GradeCost %>%
-      bind_rows(L211.GradeCost.offshore, L211.GradeCost.unconv) -> L211.GradeCost
+    # L211.DepresourceCal: subresource calproduction
+    L111.Prod_EJ_R_F_Yh_USA %>%
+      filter(year %in% MODEL_BASE_YEARS) %>%
+      rename(cal.production = value) %>%
+      select(region, resource, reserve.subresource, year, cal.production) -> L211.RsrcCalProd_USA
 
 
-    # We need to add resource to cover historical production since it is not included in the supply curves
-    # Do not include the first year for cumulative production since the model does not consider it
-    L111.gas_prod_state_T_Yh_EJ %>%
-      mutate(grade = "grade.hist") %>%
-      group_by(state, depresource, subresource, grade) %>%
-      mutate(timestep = year - lag(year, n = 1L)) %>%
-      filter(timestep != is.na(timestep)) %>%
-      mutate(value = prod * timestep) %>%
-      summarise(available = sum(value)) %>%
-      ungroup() -> L211.CumulHistProduction
+    # Part 2: Create state regional natural gas sectors which aggregate resource types.
+    # -------------------------------------------------------------------------------------------
+    # 1) reserve.subresource lifetime - follow national assumption
+    L211.RsrcCalProd_USA %>%
+      select(region, resource, reserve.subresource) %>%
+      distinct() %>%
+      left_join_error_no_match(L210.ResSubresourceProdLifetime %>%
+                                 filter(region == "USA" & resource == "natural gas") %>%
+                                 select(resource, avg.prod.lifetime), by = "resource") -> L211.ResSubresourceProdLifetime_USA
 
-    # Merge costs and available
-    # Sort by costs while grouping by state and resource to get grades in an appropriate order
-    L111.gas_supply_state_T_EJ %>%
-      mutate(grade.max = 0) %>%
-      rename(depresource = resource) %>%
-      mutate(subresource = depresource) %>%
-      gather(grade, available, -state, -depresource, -subresource) -> L211.GradeAvail
+    # 2) reserve.subresource price adder in 2100 - follow national assumption
+    L211.RsrcCalProd_USA %>%
+      select(region, resource, reserve.subresource) %>%
+      distinct() %>%
+      left_join_error_no_match(L210.SubresourcePriceAdder %>%
+                                 filter(region == "USA" & resource == "natural gas") %>%
+                                 select(resource, year, price.adder), by = "resource") -> L211.SubresourcePriceAdder_USA
 
-    L111.unconv_gas_supply_state_EJ %>%
-      select(state, resource, grade, available) %>%
-      rename(depresource = resource) %>%
-      mutate(subresource = depresource) -> L211.GradeAvail.unconv
+    # 3) historical calculated reserve - follow the same method in L210.resources.R
 
-    L211.GradeAvail %>% bind_rows(L211.CumulHistProduction, L211.GradeAvail.unconv) %>%
-      left_join_error_no_match(L211.GradeCost, by = c("state", "depresource", "grade")) %>%
-      mutate(available = round(available, 7),
-             cost = round(cost, 3)) %>%
-      arrange(state, depresource, cost) -> L211.Grades
+    # Back calculate reserve additions to be exactly enough given our historical production
+    # and assumed production lifetime.  Note production lifetimes may not cover the entire
+    # historical period making the calculation a bit more tricky.  We use the lag_prod_helper
+    # to help project forward production by each historical vintage so we can take this into
+    # account.
 
-    # Create state regional natural gas sectors which aggregate resource types.
+    # ------- FOSSIL RESOURCE RESERVE ADDITIONS
+    # Kind of a level 1.5 we are going to calculate / update historical energy
+    # but the years we choose as the model base years matter
+
+    GCAM_timesteps <- diff(MODEL_BASE_YEARS)
+    start.year.timestep <- modeltime.PERIOD0_TIMESTEP
+    model_year_timesteps <- tibble(year = MODEL_BASE_YEARS, timestep = c(start.year.timestep, GCAM_timesteps))
+
+    # a pipelne helper function to help back calculate new additions to reserve
+    # from historical production
+    lag_prod_helper <- function(year, value, year_operate, final_year) {
+      ret <- value
+      for(i in seq_along(year)) {
+        if(i == 1) {
+          # first year assume all production in this vintage
+          ret[i] <- value[i]
+        } else if( year_operate[i] > final_year[i]) {
+          if(year_operate[i -1] >= final_year[i]) {
+            # retired
+            ret[i] <- 0
+          } else {
+            # final timestep that is operating so we must adjust the production
+            # by the number of years into the timestep it should have operated
+            # incase lifetime and timesteps do not neatly overlap
+            ret[i] <- ret[i - 1] * (year_operate[i] - final_year[i]) / (year_operate[i] - year_operate[i-1])
+          }
+        } else if(year_operate[i] > year[i]) {
+          # assume a vintage that as already invested continues at full
+          # capacity
+          ret[i] <- ret[i -1]
+        } else {
+          # to determine new investment we take the difference between
+          # what the total should be and subtract off production from
+          # previous vintages that are still operating
+          ret[i] <- 0
+          ret[i] <- pmax(value[i] - sum(ret[year_operate == year[i]]), 0)
+        }
+      }
+      ret
+    }
+
+    L111.Prod_EJ_R_F_Yh_USA %>%
+      filter(year %in% MODEL_BASE_YEARS) %>%
+      left_join_error_no_match(select(L211.ResSubresourceProdLifetime_USA, resource, lifetime = avg.prod.lifetime, reserve.subresource) %>% distinct(),
+                               by=c("resource", "reserve.subresource")) %>%
+      left_join_error_no_match(model_year_timesteps, by = c("year")) %>%
+      repeat_add_columns(tibble(year_operate = MODEL_BASE_YEARS)) %>%
+      mutate(final_year = pmin(MODEL_BASE_YEARS[length(MODEL_BASE_YEARS)], (year - timestep + lifetime))) %>%
+      filter(year_operate >= year - timestep + 1) %>%
+      group_by(region, resource, reserve.subresource) %>%
+      mutate(value = lag_prod_helper(year, value, year_operate, final_year)) %>%
+      ungroup() %>%
+      filter(year == year_operate) %>%
+      mutate(value = value * lifetime) %>%
+      select(-lifetime, -timestep, -year_operate) ->
+      L211.Reserve_EJ_R_F_Yh
+
+    L211.Reserve_EJ_R_F_Yh %>%
+      rename(cal.reserve = value) %>%
+      select(region, resource, reserve.subresource, year, cal.reserve) ->
+      L211.ReserveCalReserve_USA
+
+    # 4) reserve.subresource technology lifetime - follow national assumption
+    L211.RsrcCalProd_USA %>%
+      select(region, resource, reserve.subresource) %>%
+      distinct() %>%
+      # use left_join becuase number of rows will be changes (copy to all years)
+      left_join(L210.ResReserveTechLifetime %>%
+                  filter(region == "USA" & resource == "natural gas") %>%
+                  select(resource, resource.reserve.technology, year, lifetime),
+                by = "resource") -> L211.ResReserveTechLifetime_USA
+
+    # 5) reserve.resource.technology decline.phase.percent - follow national assumption
+    L211.RsrcCalProd_USA %>%
+      select(region, resource, reserve.subresource) %>%
+      distinct() %>%
+      left_join(L210.ResReserveTechDeclinePhase %>%
+                  filter(region == "USA" & resource == "natural gas") %>%
+                  select(resource, resource.reserve.technology, year, decline.phase.percent),
+                by = "resource") -> L211.ResReserveTechDeclinePhase_USA
+
+    # 6) reserve.resource.technology profit.shutdown parameters - follow national assumption
+    L211.RsrcCalProd_USA %>%
+      select(region, resource, reserve.subresource) %>%
+      distinct() %>%
+      left_join(L210.ResReserveTechProfitShutdown %>%
+                  filter(region == "USA" & resource == "natural gas") %>%
+                  select(resource, resource.reserve.technology, year, median.shutdown.point, profit.shutdown.steepness),
+                by = "resource") -> L211.ResReserveTechProfitShutdown_USA
+
+    # Part 3: Create state regional natural gas sectors which aggregate resource types.
+    # -------------------------------------------------------------------------------------------
+
     # L211.Sector: Regional natural gas sector to aggregate gas types.
-    L111.gas_supply_state_T_EJ %>%
-      distinct(state) -> L211.gas_regions
+    L111.Prod_EJ_R_F_Yh_USA %>%
+      distinct(region) -> L211.gas_regions
 
-    # TODO: these logit assumptions matter
+    # Note: these logit assumptions matter
     L211.gas_regions %>%
-      rename(region = state) %>%
       mutate(supplysector = L211.gas_prod_sector_name,
              output.unit = "EJ",
              input.unit = "EJ",
@@ -265,112 +277,89 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
 
     L211.Supplysector_NGprod %>% bind_rows(L211.Sector) %>%
       select(LEVEL2_DATA_NAMES[["Supplysector"]]) %>%
-      mutate(logit.type = NA) -> L211.Sector
-
-    # TODO
-    # L211.SectorLogitTables <- get_logit_fn_tables( L211.Sector, names_SupplysectorLogitType,
-    #                                                base.header="Supplysector_", include.equiv.table=T, write.all.regions=F )
+      mutate(logit.type = NA) -> L211.Sector_prod_USA
 
     # Add USA & state natural gas production sectors to CO2 Coefs, format for output
-    L211.PrimaryCO2Coef %>%
-      bind_rows(L211.Sector %>%
-                  select(region) %>%
-                  rename(state = region) %>%
-                  mutate(resource = L211.gas_prod_sector_name,
-                         co2.coef = 14.2)) %>%
-      rename(region = state, PrimaryFuelCO2Coef.name = resource, PrimaryFuelCO2Coef = co2.coef )-> L211.PrimaryCO2Coef
+    # TODO: will add this to Ccoef files later
+    L211.Sector_prod_USA %>%
+      select(region) %>%
+      distinct() %>%
+      mutate(resource = L211.gas_prod_sector_name,
+             co2.coef = 14.2) %>%
+      rename(PrimaryFuelCO2Coef.name = resource, PrimaryFuelCO2Coef = co2.coef )-> L211.PrimaryCO2Coef_USA
 
-    # L211.Subsector: Regional natural gas subsector to aggregate gas types
+    # L211.Subsector_prod_USA: Regional natural gas subsector to aggregate gas types
     # NOTE: these logit assumptions do not matter as there is no competition at this nest
-    L111.gas_supply_state_T_EJ %>%
-      select(state, resource) %>%
-      bind_rows(L111.unconv_gas_supply_state_EJ %>%
-                  select(state, resource)) %>%
-      distinct(state, resource) %>%
-      rename(region = state) %>%
+    L111.Prod_EJ_R_F_Yh_USA %>%
+      select(region, resource) %>%
+      distinct(region, resource) %>%
       rename(subsector = resource) %>%
       mutate(supplysector = L211.gas_prod_sector_name,
              logit.year.fillout = MODEL_BASE_YEARS[1],
              logit.exponent=-6,
              logit.type=NA) %>%
-      select(region, supplysector, subsector, logit.year.fillout, logit.exponent, logit.type) -> L211.Subsector
-
-    # TODO
-    # L211.SubsectorLogitTables <- get_logit_fn_tables( L211.Subsector, names_SubsectorLogitType,
-    #                                                   base.header="SubsectorLogit_", include.equiv.table=F, write.all.regions=F )
+      select(region, supplysector, subsector, logit.year.fillout, logit.exponent, logit.type) -> L211.Subsector_prod_USA
 
 
     # L211.SubsInterpRule: Regional natural gas subsector interpolation rules
     # Shareweight defaults to zero, which will get reset by tech cal if appropriate
-    L211.Subsector %>%
-      select(LEVEL2_DATA_NAMES[["Subsector"]]) %>%
-      mutate(year = MODEL_BASE_YEARS[1],
-             share.weight = 0) -> L211.SubsShrwtFlt
+    L211.Subsector_prod_USA %>%
+      mutate(year.fillout = MODEL_BASE_YEARS[1],
+             share.weight = 0) %>%
+      select(LEVEL2_DATA_NAMES[["SubsectorShrwtFllt"]]) -> L211.SubsShrwtFlt_USA
 
     # Warning: we should partition this table in two if to.value is not NA
-    L211.Subsector %>%
+    L211.Subsector_prod_USA %>%
       select(LEVEL2_DATA_NAMES[["Subsector"]]) %>%
       left_join(A10.subsector_interp, by = c("supplysector", "subsector")) %>%
       set_years() %>%
       mutate(from.year = as.character(from.year),
              to.year = as.character(to.year)) %>%
-      select(LEVEL2_DATA_NAMES[["SubsectorInterp"]]) -> L211.SubsInterpRule
+      select(LEVEL2_DATA_NAMES[["SubsectorInterp"]]) -> L211.SubsInterpRule_States
 
-    #Create L211.Subs_shrwt for those states WITH unconventional resources
-    L211.SubsInterpRule %>%
-      filter(subsector == "unconventional gas other") %>%
-      select(region) %>%
-      distinct(region)-> Unconventional_States
 
-    A10.subsector_shrwt %>%
-      filter(region == "USA") %>%
-      write_to_all_states(names(A10.subsector_shrwt)) %>%
-      inner_join(Unconventional_States, by = c("region")) -> L211.Subs_shrwt
-
-    # L211.GlobalDBTechInput: Pass through tech
-    L211.Subsector %>%
-      distinct(supplysector,subsector) %>%
+    # L211.TechInput: Pass through tech
+    L211.Subsector_prod_USA %>%
+      distinct(region, supplysector,subsector) %>%
       mutate(technology = subsector) %>%
-      repeat_add_columns(tibble("year" = MODEL_YEARS)) -> L211.GlobalDBTechInput
+      repeat_add_columns(tibble("year" = MODEL_YEARS)) -> L211.TechInput
 
-    L211.GlobalDBTechInput %>%
-      mutate(share.weight = if_else(year <= MODEL_FINAL_BASE_YEAR, 0, 1)) -> L211.GlobalDBTechShrwt
+    L211.TechInput %>%
+      mutate(share.weight = if_else(year <= MODEL_FINAL_BASE_YEAR, 0, 1)) %>%
+      select(LEVEL2_DATA_NAMES[["TechShrwt"]]) -> L211.TechShrwt
 
-    L211.GlobalDBTechInput %>%
+    L211.TechInput %>%
       mutate(minicam.energy.input = technology,
-             coefficient = 1) -> L211.GlobalDBTechCoef
+             coefficient = 1,
+             market.name = region) %>%
+      select(LEVEL2_DATA_NAMES[["TechCoef"]]) -> L211.TechCoef
 
-    # "L211.TechCal: natural gas resource calibration"
-    L111.gas_prod_state_T_Yh_EJ -> L211.gas_prod_state_T_Th_EJ
-
-    L211.gas_prod_state_T_Th_EJ %>%
-      filter(prod > 0) %>%
-      rename(region = state) %>%
+    # L211.TechCal_USA: natural gas resource calibration
+    L111.Prod_EJ_R_F_Yh_USA %>%
+      filter(year %in% MODEL_BASE_YEARS) %>%
+      filter(value > 0) %>%
       mutate(supplysector = L211.gas_prod_sector_name,
-             subsector = depresource,
-             stub.technology = depresource,
-             minicam.energy.input = depresource,
-             calibrated.value = round(prod, 7),
+             subsector = resource,
+             stub.technology = resource,
+             minicam.energy.input = resource,
+             calibrated.value = round(value, 7),
              share.weight.year = year,
              subs.share.weight = 1,
              tech.share.weight = 1) %>%
-      select(LEVEL2_DATA_NAMES[["StubTechCalInput"]]) -> L211.TechCal
+      select(LEVEL2_DATA_NAMES[["StubTechCalInput"]]) -> L211.TechCal_USA
 
-    # L211.TechStubs: empty stubs for state / gas type that did not produce historically"
-    L211.Subsector %>%
-      anti_join(L211.TechCal, by = c("region", "subsector")) %>%
-      select(LEVEL2_DATA_NAMES[["Subsector"]]) %>%
-      mutate(technology = subsector) -> L211.TechStubs
-
-    # Add these resources to the traded natural gas sector
+    # Part 4: Add these resources to the traded natural gas sector
+    # -------------------------------------------------------------------------------------------
     # "L211.TNGSubsInterp: The interpolation rule for the regions in the traded natural gas sector."
     L211.regional_ng_sector <- "natural gas production"
 
-    L211.gas_prod_state_T_Th_EJ %>% group_by(state, year) %>%
-      summarise(value = sum(prod)) %>%
-      ungroup(state) -> L211.gas_prod_state_Yh_EJ
+    L111.Prod_EJ_R_F_Yh_USA %>%
+      group_by(region, year) %>%
+      summarise(value = sum(value)) %>%
+      ungroup() -> L211.gas_prod_state_Yh_EJ
 
     L211.gas_prod_state_Yh_EJ %>%
+      rename(state = region) %>%
       distinct(state) %>%
       mutate(region = "USA",
              supplysector = L211.regional_ng_sector,
@@ -379,34 +368,24 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
              from.year = as.character(MODEL_FINAL_BASE_YEAR),
              to.year = as.character(MODEL_YEARS[ length( MODEL_YEARS ) ]),
              interpolation.function="fixed" ) %>%
-      select(-state) -> L211.TNGSubsInterp
+      select(-state) -> L211.TNGSubsInterp_USA
 
-    L211.SubsInterpRule %>%
-      bind_rows(L211.TNGSubsInterp) -> L211.SubsInterpRule
+    L211.SubsInterpRule_States %>%
+      bind_rows(L211.TNGSubsInterp_USA) -> L211.SubsInterpRule_USA
 
     # L211.TNGSubsectorLogit: The subsector logits for the regions in the traded natural gas sector.
     # NOTE: these logit assumptions do not matter as there is no competition at this nest
-    L211.TNGSubsInterp %>%
+    L211.TNGSubsInterp_USA %>%
       mutate(logit.year.fillout = MODEL_BASE_YEARS[1],
              logit.exponent = -6,
              logit.type = NA) %>%
-      select(LEVEL2_DATA_NAMES[["SubsectorLogit"]]) -> L211.TNGSubsectorLogit
+      select(region, supplysector, subsector, logit.year.fillout, logit.exponent, logit.type) -> L211.TNGSubsectorLogit
 
-    # TODO
-    # L211.TNGSubsectorLogitTables <- get_logit_fn_tables( L211.TNGSubsectorLogit, names_SubsectorLogitType,
-    #                                                      base.header="SubsectorLogit_", include.equiv.table=F, write.all.regions=F )
-
-    # TODO
-    # for( logit.table in names( L211.TNGSubsectorLogitTables ) ) {
-    #   if( nrow( L211.TNGSubsectorLogitTables[[ logit.table ]]$data ) > 0 ) {
-    #     L211.SubsectorLogitTables[[ logit.table ]]$data <- rbind( L211.SubsectorLogitTables[[ logit.table ]]$data,
-    #                                                               L211.TNGSubsectorLogitTables[[ logit.table ]]$data )
-    #   }
-    # }
 
     # "L211.TNGTech: create the tech to simply pass through state production"
     L211.gas_prod_state_Yh_EJ %>%
-      rename(market.name = state) %>%
+      filter(year %in% MODEL_BASE_YEARS) %>%
+      mutate(market.name = region) %>%
       mutate(minicam.energy.input = L211.gas_prod_sector_name,
              region = "USA",
              supplysector = L211.regional_ng_sector,
@@ -424,196 +403,197 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
       mutate(coefficient = 1) %>%
       select(LEVEL2_DATA_NAMES[["TechCoef"]]) -> L211.TNGTechCoef
 
-    # "L211.DepresourceCal: subresource calproduction"
-    L211.TechCal %>%
-      rename(depresource = subsector) %>%
-      rename(subresource = stub.technology) %>%
-      rename(cal.production = calibrated.value) %>%
-      select(region, depresource, subresource, year, cal.production) -> L211.DepresourceCal
+
 
 
     # ===================================================
     # Produce outputs
 
-    L211.PrimaryCO2Coef %>%
+    L211.PrimaryCO2Coef_USA %>%
       add_title("USA and state natural gas production carbon Coefs") %>%
       add_units("kg C per GJ") %>%
       add_comments("USA and state natural gas production carbon Coefs") %>%
-      add_precursors("L111.gas_supply_state_T_EJ",
-                     "L111.unconv_gas_supply_state_EJ") ->
-      L211.PrimaryCO2Coef
+      add_precursors("L111.Prod_EJ_R_F_Yh_USA") ->
+      L211.PrimaryCO2Coef_USA
 
-    L211.Depresource %>%
+    L211.Rsrc_F_USA %>%
       add_title("resource parameters") %>%
       add_units("output unit EJ price unit 1975$ per GJ") %>%
       add_comments("resource parameters") %>%
       same_precursors_as("L211.PrimaryCO2Coef") ->
-      L211.Depresource
+      L211.Rsrc_F_USA
 
-    L211.DepresourcePrice %>%
-      add_title("add a resource price in initial base year") %>%
+    L211.RsrcPrice_F_USA %>%
+      add_title("add a resource price in base year") %>%
       add_units("TODO") %>%
-      add_comments("add a resource price in initial base year") %>%
+      add_comments("copy global assumptions") %>%
       same_precursors_as("L211.PrimaryCO2Coef") ->
-      L211.DepresourcePrice
+      L211.RsrcPrice_F_USA
 
-    L211.DepresourceCal %>%
+    L211.RsrcCalProd_USA %>%
       add_title("subresource calibrated production") %>%
       add_units("EJ") %>%
       add_comments("subresource calibrated production") %>%
-      add_precursors("L111.gas_supply_state_T_EJ") ->
-      L211.DepresourceCal
+      add_precursors("L111.Prod_EJ_R_F_Yh_USA") ->
+      L211.RsrcCalProd_USA
 
-    L211.DepresourceTechChange %>%
+    L211.RsrcTechChange_USA %>%
       add_title("subresource tech change") %>%
       add_units("unitless") %>%
       add_comments("subresource tech change") %>%
       same_precursors_as("L211.PrimaryCO2Coef") %>%
-      add_precursors("gcam-usa/A10.TechChange") ->
-      L211.DepresourceTechChange
+      add_precursors("energy/A10.TechChange") ->
+      L211.RsrcTechChange_USA
 
-    L211.Grades %>%
+    L211.RsrcCurves_fos_USA %>%
       add_title("resource curve") %>%
       add_units("unitless") %>%
       add_comments("resource curve") %>%
-      add_precursors("gcam-usa/ETSAP_gas_cost_range",
-                     "gcam-usa/BOEM_gas_cost",
-                     "L111.unconv_gas_supply_state_EJ",
-                     "L111.gas_prod_state_T_Yh_EJ",
-                     "L111.gas_supply_state_T_EJ") ->
-      L211.Grades
+      add_precursors("L111.ResCurves_EJ_R_Ffos_USA") ->
+      L211.RsrcCurves_fos_USA
 
-    L211.Sector %>%
+    L211.ResSubresourceProdLifetime_USA %>%
+      add_title("reserve subresource lifetime") %>%
+      add_units("years") %>%
+      add_comments("copy global assumptions") %>%
+      add_precursors("L111.Prod_EJ_R_F_Yh_USA",
+                     "L210.ResSubresourceProdLifetime") ->
+      L211.ResSubresourceProdLifetime_USA
+
+    L211.SubresourcePriceAdder_USA %>%
+      add_title("reserve subresource price adder in 2100") %>%
+      add_units("zero") %>%
+      add_comments("copy global assumptions") %>%
+      add_precursors("L111.Prod_EJ_R_F_Yh_USA",
+                     "L210.SubresourcePriceAdder") ->
+      L211.SubresourcePriceAdder_USA
+
+    L211.ReserveCalReserve_USA %>%
+      add_title("historical calculated reserve") %>%
+      add_units("EJ") %>%
+      add_comments("follow the same method in L210.resources") %>%
+      add_precursors("L111.Prod_EJ_R_F_Yh_USA") ->
+      L211.ReserveCalReserve_USA
+
+    L211.ResReserveTechLifetime_USA %>%
+      add_title("reserve subresource technology lifetime") %>%
+      add_units("years") %>%
+      add_comments("copy global assumptions") %>%
+      add_precursors("L111.Prod_EJ_R_F_Yh_USA",
+                     "L210.ResReserveTechLifetime") ->
+      L211.ResReserveTechLifetime_USA
+
+    L211.ResReserveTechDeclinePhase_USA %>%
+      add_title("reserve resource technology decline phase percent") %>%
+      add_units("years") %>%
+      add_comments("copy global assumptions") %>%
+      add_precursors("L111.Prod_EJ_R_F_Yh_USA",
+                     "L210.ResReserveTechDeclinePhase") ->
+      L211.ResReserveTechDeclinePhase_USA
+
+    L211.ResReserveTechProfitShutdown_USA %>%
+      add_title("reserve resource technology profit shutdown parameters") %>%
+      add_units("years") %>%
+      add_comments("copy global assumptions") %>%
+      add_precursors("L111.Prod_EJ_R_F_Yh_USA",
+                     "L210.ResReserveTechProfitShutdown") ->
+      L211.ResReserveTechProfitShutdown_USA
+
+    L211.Sector_prod_USA %>%
       add_title("supplysector logit table") %>%
       add_units("unitless") %>%
       add_comments("supplysector logit table") %>%
       add_precursors("gcam-usa/A23.gas_sector_vertical",
-                     "L111.gas_supply_state_T_EJ") ->
-      L211.Sector
+                     "L111.Prod_EJ_R_F_Yh_USA") ->
+      L211.Sector_prod_USA
 
-
-    L211.Subsector %>%
+    L211.Subsector_prod_USA %>%
       add_title("subresource logit table") %>%
       add_units("unitless") %>%
       add_comments("subresource logit table") %>%
-      add_precursors("L111.unconv_gas_supply_state_EJ",
-                     "L111.gas_supply_state_T_EJ") ->
-      L211.Subsector
+      add_precursors("L111.Prod_EJ_R_F_Yh_USA") ->
+      L211.Subsector_prod_USA
 
-    L211.SubsShrwtFlt %>%
+    L211.SubsShrwtFlt_USA %>%
       add_title("subsector shareweight table") %>%
       add_units("unitless") %>%
       add_comments("subsector shareweight table") %>%
-      same_precursors_as("L211.Subsector") ->
-      L211.SubsShrwtFlt
+      same_precursors_as("L211.Subsector_prod_USA") ->
+      L211.SubsShrwtFlt_USA
 
-    L211.SubsInterpRule %>%
+    L211.SubsInterpRule_USA %>%
       add_title("subsector interpolation rule") %>%
       add_units("unitless") %>%
       add_comments("subsector interpolation rule") %>%
-      same_precursors_as("L211.Subsector") %>%
+      same_precursors_as("L211.Subsector_prod_USA") %>%
       add_precursors("gcam-usa/A10.subsector_interp") ->
-      L211.SubsInterpRule
+      L211.SubsInterpRule_USA
 
-    L211.Subs_shrwt %>%
-      add_title("subsector shareweight in future years") %>%
-      add_units("unitless") %>%
-      add_comments("subsector shareweight in future years") %>%
-      same_precursors_as("L211.SubsInterpRule") %>%
-      add_precursors("gcam-usa/A10.subsector_shrwt") ->
-      L211.Subs_shrwt
-
-    L211.GlobalDBTechShrwt %>%
+    L211.TechShrwt %>%
       add_title("global technology database technology shareweight") %>%
       add_units("unitless") %>%
       add_comments("global technology database technology shareweight") %>%
-      same_precursors_as("L211.Subsector") ->
-      L211.GlobalDBTechShrwt
+      same_precursors_as("L211.Subsector_prod_USA") ->
+      L211.TechShrwt_USA
 
-    L211.GlobalDBTechCoef %>%
+    L211.TechCoef %>%
       add_title("global technology database technology coefficient") %>%
       add_units("unitless") %>%
       add_comments("global technology database technology coefficient") %>%
-      same_precursors_as("L211.Subsector") ->
-      L211.GlobalDBTechCoef
+      same_precursors_as("L211.Subsector_prod_USA") ->
+      L211.TechCoef_USA
 
-    L211.TechCal %>%
+    L211.TechCal_USA %>%
       add_title("natural gas resource technology calibration") %>%
       add_units("EJ") %>%
       add_comments("natural gas resource technology calibration") %>%
-      add_precursors("L111.gas_prod_state_T_Yh_EJ") ->
-      L211.TechCal
+      add_precursors("L111.Prod_EJ_R_F_Yh_USA") ->
+      L211.TechCal_USA
 
-    L211.TechStubs %>%
-      add_title("natural gas resource stub.technology table") %>%
+    L211.TNGSubsectorLogit %>%
+      add_title("create subsector logit for national pass-through natural gas production") %>%
       add_units("unitless") %>%
-      add_comments("natural gas resource stub.technology table") %>%
-      same_precursors_as("L211.Subsector") ->
-      L211.TechStubs
+      add_comments("create subsector logit for national pass-through natural gas production") %>%
+      same_precursors_as("L211.SubsInterpRule_USA") ->
+      L211.TNGSubsectorLogit
 
     L211.TNGTechProduction %>%
       add_title("create the tech to simply pass through state production to USA and calibration technology production") %>%
       add_units("unitless") %>%
       add_comments("create the tech to simply pass through state production to USA and calibration technology production") %>%
-      add_precursors("L111.gas_prod_state_T_Yh_EJ") ->
-      L211.TNGTechProduction
+      add_precursors("L111.Prod_EJ_R_F_Yh_USA") ->
+      L211.TNGTechProduction_USA
 
     L211.TNGTechCoef %>%
       add_title("create the tech to simply pass through state production to USA and set coefficient as 1") %>%
       add_units("unitless") %>%
       add_comments("create the tech to simply pass through state production to USA and set coefficient as 1") %>%
-      add_precursors("L111.gas_prod_state_T_Yh_EJ") ->
-      L211.TNGTechCoef
+      add_precursors("L111.Prod_EJ_R_F_Yh_USA") ->
+      L211.TNGTechCoef_USA
 
-    L211.InterestRate_Offshore %>%
-      add_title("dummy interest rate for offshore regions") %>%
-      add_units("unitless") %>%
-      add_comments("dummy interest rate for offshore regions") %>%
-      add_precursors("gcam-usa/BOEM_gas_cost") ->
-      L211.InterestRate_Offshore
+    return_data(L211.PrimaryCO2Coef_USA,
+                L211.Rsrc_F_USA,
+                L211.RsrcPrice_F_USA,
+                L211.RsrcCalProd_USA,
+                L211.RsrcTechChange_USA,
+                L211.RsrcCurves_fos_USA,
+                L211.ResSubresourceProdLifetime_USA,
+                L211.SubresourcePriceAdder_USA,
+                L211.ReserveCalReserve_USA,
+                L211.ResReserveTechLifetime_USA,
+                L211.ResReserveTechDeclinePhase_USA,
+                L211.ResReserveTechProfitShutdown_USA,
+                L211.Sector_prod_USA,
+                L211.Subsector_prod_USA,
+                L211.SubsShrwtFlt_USA,
+                L211.SubsInterpRule_USA,
+                L211.TechShrwt_USA,
+                L211.TechCoef_USA,
+                L211.TechCal_USA,
+                L211.TNGSubsectorLogit,
+                L211.TNGTechProduction_USA,
+                L211.TNGTechCoef_USA)
 
-    L211.Pop_Offshore %>%
-      add_title("dummy population for offshore regions") %>%
-      add_units("unitless") %>%
-      add_comments("dummy population for offshore regions") %>%
-      same_precursors_as("L211.InterestRate_Offshore") ->
-      L211.Pop_Offshore
-
-    L211.BaseGDP_Offshore %>%
-      add_title("dummy baseGDP for offshore regions") %>%
-      add_units("unitless") %>%
-      add_comments("dummy baseGDP for offshore regions") %>%
-      same_precursors_as("L211.InterestRate_Offshore") ->
-      L211.BaseGDP_Offshore
-
-    L211.LaborForceFillout_Offshore %>%
-      add_title("dummy laborforce for offshore regions") %>%
-      add_units("unitless") %>%
-      add_comments("dummy laborforce for offshore regions") %>%
-      same_precursors_as("L211.InterestRate_Offshore") ->
-      L211.LaborForceFillout_Offshore
-
-    return_data(L211.PrimaryCO2Coef,
-                L211.Depresource,
-                L211.DepresourcePrice,
-                L211.DepresourceCal,
-                L211.DepresourceTechChange,
-                L211.Grades,
-                L211.Sector,
-                L211.Subsector,
-                L211.SubsShrwtFlt,
-                L211.SubsInterpRule,
-                L211.Subs_shrwt,
-                L211.GlobalDBTechShrwt,
-                L211.GlobalDBTechCoef,
-                L211.TechCal,
-                L211.TechStubs,
-                L211.TNGTechProduction,
-                L211.TNGTechCoef,
-                L211.InterestRate_Offshore,
-                L211.Pop_Offshore,
-                L211.BaseGDP_Offshore,
-                L211.LaborForceFillout_Offshore)
   } else {
     stop("Unknown command")
   }

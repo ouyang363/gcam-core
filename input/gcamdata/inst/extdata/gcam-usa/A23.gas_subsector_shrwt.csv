@@ -4,7 +4,7 @@
 # Source: None (GCAM assumptions)
 # Column types: ccccn
 # ----------
-region,supplysector,subsector,year,share-weight
+region,supplysector,subsector,year,share.weight
 USA,regional natural gas,imported natural gas,2015,0.1
 USA,regional natural gas,imported natural gas,2050,0
 USA,regional natural gas,imported natural gas,end-year,0

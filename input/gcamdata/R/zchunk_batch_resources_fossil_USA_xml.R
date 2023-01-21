@@ -12,27 +12,39 @@
 #' original data system was \code{batch_resources_USA_xml.R} (gcamusa XML).
 module_gcamusa_batch_resources_fossil_USA_xml <- function(command, ...) {
   if(command == driver.DECLARE_INPUTS) {
-    return(c("L211.PrimaryCO2Coef",
-             "L211.Depresource",
-             "L211.DepresourcePrice",
-             "L211.DepresourceCal",
-             "L211.DepresourceTechChange",
-             "L211.Grades",
-             "L211.Sector",
-             "L211.Subsector",
-             "L211.SubsShrwtFlt",
-             "L211.SubsInterpRule",
-             "L211.Subs_shrwt",
-             "L211.GlobalDBTechShrwt",
-             "L211.GlobalDBTechCoef",
-             "L211.TechCal",
-             "L211.TechStubs",
-             "L211.TNGTechProduction",
-             "L211.TNGTechCoef",
-             "L211.InterestRate_Offshore",
-             "L211.Pop_Offshore",
-             "L211.BaseGDP_Offshore",
-             "L211.LaborForceFillout_Offshore"))
+    return(c("L211.PrimaryCO2Coef_USA",
+             "L211.Rsrc_F_USA",
+             "L211.RsrcPrice_F_USA",
+             "L211.RsrcCalProd_USA",
+             "L211.RsrcTechChange_USA",
+             "L211.RsrcCurves_fos_USA",
+             "L211.ResSubresourceProdLifetime_USA",
+             "L211.SubresourcePriceAdder_USA",
+             "L211.ReserveCalReserve_USA",
+             "L211.ResReserveTechLifetime_USA",
+             "L211.ResReserveTechDeclinePhase_USA",
+             "L211.ResReserveTechProfitShutdown_USA",
+             "L211.Sector_prod_USA",
+             "L211.Subsector_prod_USA",
+             "L211.SubsShrwtFlt_USA",
+             "L211.SubsInterpRule_USA",
+             "L211.TechShrwt_USA",
+             "L211.TechCoef_USA",
+             "L211.TechCal_USA",
+             "L211.TNGSubsectorLogit",
+             "L211.TNGTechProduction_USA",
+             "L211.TNGTechCoef_USA",
+             "L2262.DeleteRsrc_NG_USA",
+             "L2262.Delete_regNG_supplysector",
+             "L2262.Supplysector_regNG_USA",
+             "L2262.Subsector_regNG_USA",
+             "L2262.PrimaryConsKeyword_regNG_USA",
+             "L2262.StubTechProd_regNG_USA",
+             "L2262.TechCoef_regNG_USA",
+             "L2262.TechShrwt_regNG_USA",
+             "L2262.SubsectorShrwt_regNG_USA",
+             "L2262.SubsectorShrwtInterp_regNG_USA",
+             "L2262.SubsectorShrwtInterpTo_regNG_USA"))
   } else if(command == driver.DECLARE_OUTPUTS) {
     return(c(XML = "resources_fossil_USA.xml"))
   } else if(command == driver.MAKE) {
@@ -40,106 +52,134 @@ module_gcamusa_batch_resources_fossil_USA_xml <- function(command, ...) {
     all_data <- list(...)[[1]]
 
     # Load required inputs
-    L211.PrimaryCO2Coef <- get_data(all_data, "L211.PrimaryCO2Coef")
-    L211.Depresource <- get_data(all_data, "L211.Depresource")
-    L211.DepresourcePrice <- get_data(all_data, "L211.DepresourcePrice")
-    L211.DepresourceCal <- get_data(all_data, "L211.DepresourceCal")
-    L211.DepresourceTechChange <- get_data(all_data, "L211.DepresourceTechChange")
-    L211.Grades <- get_data(all_data, "L211.Grades")
-    L211.Sector <- get_data(all_data, "L211.Sector")
-    L211.Subsector <- get_data(all_data, "L211.Subsector")
-    L211.SubsShrwtFlt <- get_data(all_data, "L211.SubsShrwtFlt")
-    L211.SubsInterpRule <- get_data(all_data, "L211.SubsInterpRule")
-    L211.Subs_shrwt <- get_data(all_data, "L211.Subs_shrwt")
-    L211.GlobalDBTechShrwt <- get_data(all_data, "L211.GlobalDBTechShrwt")
-    L211.GlobalDBTechCoef <- get_data(all_data, "L211.GlobalDBTechCoef")
-    L211.TechCal <- get_data(all_data, "L211.TechCal")
-    L211.TechStubs <- get_data(all_data, "L211.TechStubs")
-    L211.TNGTechProduction <- get_data(all_data, "L211.TNGTechProduction")
-    L211.TNGTechCoef <- get_data(all_data, "L211.TNGTechCoef")
-    L211.InterestRate_Offshore <- get_data(all_data, "L211.InterestRate_Offshore")
-    L211.Pop_Offshore <- get_data(all_data, "L211.Pop_Offshore")
-    L211.BaseGDP_Offshore <- get_data(all_data, "L211.BaseGDP_Offshore")
-    L211.LaborForceFillout_Offshore <- get_data(all_data, "L211.LaborForceFillout_Offshore")
+    L211.PrimaryCO2Coef_USA <- get_data(all_data, "L211.PrimaryCO2Coef_USA")
+    L211.Rsrc_F_USA <- get_data(all_data, "L211.Rsrc_F_USA")
+    L211.RsrcPrice_F_USA <- get_data(all_data, "L211.RsrcPrice_F_USA")
+    L211.RsrcCalProd_USA <- get_data(all_data, "L211.RsrcCalProd_USA")
+    L211.RsrcTechChange_USA <- get_data(all_data, "L211.RsrcTechChange_USA")
+    L211.RsrcCurves_fos_USA <- get_data(all_data, "L211.RsrcCurves_fos_USA")
+
+    L211.ResSubresourceProdLifetime_USA <- get_data(all_data, "L211.ResSubresourceProdLifetime_USA")
+    L211.SubresourcePriceAdder_USA <- get_data(all_data, "L211.SubresourcePriceAdder_USA")
+    L211.ReserveCalReserve_USA <- get_data(all_data, "L211.ReserveCalReserve_USA")
+    L211.ResReserveTechLifetime_USA <- get_data(all_data, "L211.ResReserveTechLifetime_USA")
+    L211.ResReserveTechDeclinePhase_USA <- get_data(all_data, "L211.ResReserveTechDeclinePhase_USA")
+    L211.ResReserveTechProfitShutdown_USA <- get_data(all_data, "L211.ResReserveTechProfitShutdown_USA")
+
+    L211.Sector_prod_USA <- get_data(all_data, "L211.Sector_prod_USA")
+    L211.Subsector_prod_USA <- get_data(all_data, "L211.Subsector_prod_USA")
+    L211.SubsShrwtFlt_USA <- get_data(all_data, "L211.SubsShrwtFlt_USA")
+    L211.SubsInterpRule_USA <- get_data(all_data, "L211.SubsInterpRule_USA")
+    L211.TechShrwt_USA <- get_data(all_data, "L211.TechShrwt_USA")
+    L211.TechCoef_USA <- get_data(all_data, "L211.TechCoef_USA")
+    L211.TechCal_USA <- get_data(all_data, "L211.TechCal_USA")
+    L211.TNGSubsectorLogit <- get_data(all_data, "L211.TNGSubsectorLogit")
+    L211.TNGTechProduction_USA <- get_data(all_data, "L211.TNGTechProduction_USA")
+    L211.TNGTechCoef_USA <- get_data(all_data, "L211.TNGTechCoef_USA")
+
+    L2262.DeleteRsrc_NG_USA <- get_data(all_data, "L2262.DeleteRsrc_NG_USA")
+    L2262.Delete_regNG_supplysector <- get_data(all_data, "L2262.Delete_regNG_supplysector")
+    L2262.Supplysector_regNG_USA <- get_data(all_data, "L2262.Supplysector_regNG_USA")
+    L2262.Subsector_regNG_USA <- get_data(all_data, "L2262.Subsector_regNG_USA")
+    L2262.PrimaryConsKeyword_regNG_USA <- get_data(all_data, "L2262.PrimaryConsKeyword_regNG_USA")
+    L2262.StubTechProd_regNG_USA <- get_data(all_data, "L2262.StubTechProd_regNG_USA")
+    L2262.TechCoef_regNG_USA <- get_data(all_data, "L2262.TechCoef_regNG_USA")
+    L2262.TechShrwt_regNG_USA <- get_data(all_data, "L2262.TechShrwt_regNG_USA")
+    L2262.SubsectorShrwt_regNG_USA <- get_data(all_data, "L2262.SubsectorShrwt_regNG_USA")
+    L2262.SubsectorShrwtInterp_regNG_USA <- get_data(all_data, "L2262.SubsectorShrwtInterp_regNG_USA")
+    L2262.SubsectorShrwtInterpTo_regNG_USA <- get_data(all_data, "L2262.SubsectorShrwtInterpTo_regNG_USA")
 
 
     # ===================================================
 
-    L211.TechStubs <- L211.TechStubs %>% rename(stub.technology = technology)
-    L211.GlobalDBTechCoef <- L211.GlobalDBTechCoef %>%
-      rename(sector.name = supplysector,
-             subsector.name = subsector)
+    L211.RsrcCurves_fos_USA <- L211.RsrcCurves_fos_USA %>%
+      rename(subresource = reserve.subresource)
 
-    L211.GlobalDBTechShrwt <- L211.GlobalDBTechShrwt %>%
-      rename(sector.name = supplysector,
-             subsector.name = subsector)
+    L211.RsrcCalProd_USA <- L211.RsrcCalProd_USA %>%
+      rename(subresource = reserve.subresource)
 
-    L211.SubsShrwtFlt <- L211.SubsShrwtFlt %>% rename(year.fillout = year)
+    L211.RsrcTechChange_USA <- L211.RsrcTechChange_USA %>%
+      rename(subresource = reserve.subresource)
 
-    L211.Grades <- L211.Grades %>%
-      rename(region = state,
-             resource = depresource,
-             extractioncost = cost)
-
-    L211.DepresourceTechChange <- L211.DepresourceTechChange %>%
-      rename(region = state,
-             year.fillout = year,
-             techChange = value)
-
-    L211.DepresourceCal <- L211.DepresourceCal %>%
-      rename(resource = depresource)
-
-    L211.DepresourcePrice <- L211.DepresourcePrice %>%
-      rename(region = state)
-
-    L211.Depresource <- L211.Depresource %>%
-      rename(region = state)
+    L211.SubresourcePriceAdder_USA <- L211.SubresourcePriceAdder_USA %>%
+      rename(subresource = reserve.subresource)
 
 
     # Produce outputs
     create_xml("resources_fossil_USA.xml") %>%
-      add_xml_data(L211.PrimaryCO2Coef, "CarbonCoef") %>%
-      add_xml_data(L211.Depresource, "Rsrc") %>%
-      add_xml_data(L211.DepresourcePrice, "RsrcPrice") %>%
-      add_xml_data(L211.DepresourceCal, "RsrcCalProd") %>%
-      add_xml_data(L211.DepresourceTechChange, "RsrcTechChange") %>%
-      add_xml_data(L211.Grades, "RsrcCurves") %>%
-      add_xml_data(L211.SubsShrwtFlt, "SubsectorShrwtFllt") %>%
-      add_xml_data(L211.Subs_shrwt, "SubsectorShrwt") %>%
+      add_xml_data(L2262.DeleteRsrc_NG_USA, "DeleteRsrc") %>%
+      add_xml_data(L2262.Delete_regNG_supplysector, "DeleteSupplysector") %>%
+      # resource curve
+      add_xml_data(L211.PrimaryCO2Coef_USA, "CarbonCoef") %>%
+      add_xml_data(L211.Rsrc_F_USA, "Rsrc") %>%
       add_node_equiv_xml("resource") %>%
       add_node_equiv_xml("subresource") %>%
       add_node_equiv_xml("technology") %>%
-      add_xml_data(L211.GlobalDBTechShrwt, "GlobalTechShrwt") %>%
-      add_xml_data(L211.GlobalDBTechCoef, "GlobalTechCoef") %>%
-      add_xml_data(L211.TechCal, "StubTechCalInput") %>%
-      add_xml_data(L211.TechStubs, "StubTech") %>%
-      add_xml_data(L211.TNGTechProduction, "Production") %>%
-      add_xml_data(L211.TNGTechCoef, "TechCoef") %>%
-      add_xml_data(L211.InterestRate_Offshore, "InterestRate") %>%
-      add_xml_data(L211.Pop_Offshore, "Pop") %>%
-      add_xml_data(L211.BaseGDP_Offshore, "BaseGDP") %>%
-      add_xml_data(L211.LaborForceFillout_Offshore, "LaborForceFillout") %>%
-      add_precursors("L211.PrimaryCO2Coef",
-                     "L211.Depresource",
-                     "L211.DepresourcePrice",
-                     "L211.DepresourceCal",
-                     "L211.DepresourceTechChange",
-                     "L211.Grades",
-                     "L211.Sector",
-                     "L211.Subsector",
-                     "L211.SubsShrwtFlt",
-                     "L211.SubsInterpRule",
-                     "L211.Subs_shrwt",
-                     "L211.GlobalDBTechShrwt",
-                     "L211.GlobalDBTechCoef",
-                     "L211.TechCal",
-                     "L211.TechStubs",
-                     "L211.TNGTechProduction",
-                     "L211.TNGTechCoef",
-                     "L211.InterestRate_Offshore",
-                     "L211.Pop_Offshore",
-                     "L211.BaseGDP_Offshore",
-                     "L211.LaborForceFillout_Offshore") ->
+      # add resource.reserve.technology details
+      add_xml_data(L211.ResSubresourceProdLifetime_USA, "ResSubresourceProdLifetime") %>%
+      add_xml_data(L211.SubresourcePriceAdder_USA, "SubresourcePriceAdder") %>%
+      add_xml_data(L211.ReserveCalReserve_USA, "ReserveCalReserve") %>%
+      add_xml_data(L211.ResReserveTechLifetime_USA, "ResReserveTechLifetime") %>%
+      add_xml_data(L211.ResReserveTechDeclinePhase_USA, "ResReserveTechDeclinePhase") %>%
+      add_xml_data(L211.ResReserveTechProfitShutdown_USA, "ResReserveTechProfitShutdown") %>%
+      add_xml_data(L211.RsrcPrice_F_USA, "RsrcPrice") %>%
+      add_xml_data(L211.RsrcTechChange_USA, "RsrcTechChange") %>%
+      add_xml_data(L211.RsrcCalProd_USA, "RsrcCalProd") %>%
+      add_xml_data(L211.RsrcCurves_fos_USA, "RsrcCurves") %>%
+      # natural gas production sector
+      add_logit_tables_xml(L211.Sector_prod_USA, "Supplysector") %>%
+      add_logit_tables_xml(L211.Subsector_prod_USA, "SubsectorLogit") %>%
+      add_xml_data(L211.SubsShrwtFlt_USA, "SubsectorShrwtFllt") %>%
+      add_xml_data(L211.SubsInterpRule_USA, "SubsectorInterp") %>%
+      add_xml_data(L211.TechShrwt_USA, "TechShrwt") %>%
+      add_xml_data(L211.TechCoef_USA, "TechCoef") %>%
+      add_xml_data(L211.TechCal_USA, "StubTechCalInput") %>%
+      add_logit_tables_xml(L211.TNGSubsectorLogit, "SubsectorLogit") %>%
+      add_xml_data(L211.TNGTechProduction_USA, "Production") %>%
+      add_xml_data(L211.TNGTechCoef_USA, "TechCoef") %>%
+      # domestic versus import NG
+      add_logit_tables_xml(L2262.Supplysector_regNG_USA, "Supplysector") %>%
+      add_logit_tables_xml(L2262.Subsector_regNG_USA, "SubsectorLogit") %>%
+      add_xml_data(L2262.PrimaryConsKeyword_regNG_USA, "PrimaryConsKeywordff") %>%
+      add_xml_data(L2262.StubTechProd_regNG_USA, "StubTechProd") %>%
+      add_xml_data(L2262.TechCoef_regNG_USA, "TechCoef") %>%
+      add_xml_data(L2262.TechShrwt_regNG_USA, "TechShrwt") %>%
+      add_xml_data(L2262.SubsectorShrwt_regNG_USA, "SubsectorShrwt") %>%
+      add_xml_data(L2262.SubsectorShrwtInterp_regNG_USA, "SubsectorInterp") %>%
+      add_xml_data(L2262.SubsectorShrwtInterpTo_regNG_USA, "SubsectorInterpTo") %>%
+      add_precursors("L211.PrimaryCO2Coef_USA",
+                     "L211.Rsrc_F_USA",
+                     "L211.RsrcPrice_F_USA",
+                     "L211.RsrcCalProd_USA",
+                     "L211.RsrcTechChange_USA",
+                     "L211.RsrcCurves_fos_USA",
+                     "L211.ResSubresourceProdLifetime_USA",
+                     "L211.SubresourcePriceAdder_USA",
+                     "L211.ReserveCalReserve_USA",
+                     "L211.ResReserveTechLifetime_USA",
+                     "L211.ResReserveTechDeclinePhase_USA",
+                     "L211.ResReserveTechProfitShutdown_USA",
+                     "L211.Sector_prod_USA",
+                     "L211.Subsector_prod_USA",
+                     "L211.SubsShrwtFlt_USA",
+                     "L211.SubsInterpRule_USA",
+                     "L211.TechShrwt_USA",
+                     "L211.TechCoef_USA",
+                     "L211.TechCal_USA",
+                     "L211.TNGSubsectorLogit",
+                     "L211.TNGTechProduction_USA",
+                     "L211.TNGTechCoef_USA",
+                     "L2262.DeleteRsrc_NG_USA",
+                     "L2262.Delete_regNG_supplysector",
+                     "L2262.Supplysector_regNG_USA",
+                     "L2262.Subsector_regNG_USA",
+                     "L2262.PrimaryConsKeyword_regNG_USA",
+                     "L2262.StubTechProd_regNG_USA",
+                     "L2262.TechCoef_regNG_USA",
+                     "L2262.TechShrwt_regNG_USA",
+                     "L2262.SubsectorShrwt_regNG_USA",
+                     "L2262.SubsectorShrwtInterp_regNG_USA",
+                     "L2262.SubsectorShrwtInterpTo_regNG_USA") ->
       resources_fossil_USA.xml
 
     return_data(resources_fossil_USA.xml)

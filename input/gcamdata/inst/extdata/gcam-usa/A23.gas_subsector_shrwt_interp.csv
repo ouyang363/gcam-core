@@ -4,5 +4,5 @@
 # Source: None (GCAM assumptions)
 # Column types: ccccccc
 # ----------
-region,supplysector,subsector,apply-to,from-year,to-year,interpolation-function
+region,supplysector,subsector,apply.to,from.year,to.year,interpolation.function
 USA,regional natural gas,domestic natural gas,share-weight,final-calibration-year,end-year,fixed

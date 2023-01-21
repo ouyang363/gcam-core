@@ -1,9 +1,0 @@
-# File: A10.subsector_shrwt.csv
-# Title: State natural gas swhrt
-# Units: unitless
-# Source: None (GCAM assumptions)
-# Column types: cccii
-# ----------
-region,supplysector,subsector,year,share.weight
-USA,natural gas production,unconventional gas other,2050,1
-USA,natural gas production,unconventional gas other,2100,1
