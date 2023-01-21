@@ -155,10 +155,11 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
     # Convert EIA wellhead production data to shares
     L111.gas_production_states_EJ_EIA %>%
       left_join_error_no_match(L111.gas_production_states_EJ_EIA %>%
-                                 group_by(year) %>%
+                                 group_by(reserve.subresource, year) %>%
                                  summarise(eia.total = sum(eia.prod)) %>%
-                                 ungroup(), by = c("year")) %>%
-      mutate(share = eia.prod / eia.total) -> L111.EIA_gas_EJ
+                                 ungroup(), by = c("reserve.subresource", "year")) %>%
+      mutate(share = eia.prod / eia.total) %>%
+      replace_na(list(share = 0)) -> L111.EIA_gas_EJ
 
     # Obtain GCAM USA data for natural gas production
     L111.Prod_EJ_R_F_Yh %>%
