@@ -338,6 +338,9 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
     L111.Prod_EJ_R_F_Yh_USA %>%
       filter(year %in% MODEL_BASE_YEARS) %>%
       filter(value > 0) %>%
+      group_by(region, resource, year) %>%
+      summarise(value = sum(value)) %>%
+      ungroup() %>%
       mutate(supplysector = L211.gas_prod_sector_name,
              subsector = resource,
              stub.technology = resource,
