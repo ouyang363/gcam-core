@@ -24,6 +24,7 @@ module_gcamusa_batch_resources_fossil_USA_xml <- function(command, ...) {
              "L211.ResReserveTechLifetime_USA",
              "L211.ResReserveTechDeclinePhase_USA",
              "L211.ResReserveTechProfitShutdown_USA",
+             "L211.ResReserveTechShrwt_fossil_USA",
              "L211.Sector_prod_USA",
              "L211.Subsector_prod_USA",
              "L211.SubsShrwtFlt_USA",
@@ -65,6 +66,7 @@ module_gcamusa_batch_resources_fossil_USA_xml <- function(command, ...) {
     L211.ResReserveTechLifetime_USA <- get_data(all_data, "L211.ResReserveTechLifetime_USA")
     L211.ResReserveTechDeclinePhase_USA <- get_data(all_data, "L211.ResReserveTechDeclinePhase_USA")
     L211.ResReserveTechProfitShutdown_USA <- get_data(all_data, "L211.ResReserveTechProfitShutdown_USA")
+    L211.ResReserveTechShrwt_fossil_USA <- get_data(all_data, "L211.ResReserveTechShrwt_fossil_USA")
 
     L211.Sector_prod_USA <- get_data(all_data, "L211.Sector_prod_USA")
     L211.Subsector_prod_USA <- get_data(all_data, "L211.Subsector_prod_USA")
@@ -104,6 +106,10 @@ module_gcamusa_batch_resources_fossil_USA_xml <- function(command, ...) {
     L211.SubresourcePriceAdder_USA <- L211.SubresourcePriceAdder_USA %>%
       rename(subresource = reserve.subresource)
 
+    L211.ResReserveTechShrwt_fossil_USA <- L211.ResReserveTechShrwt_fossil_USA %>%
+      rename(subresource = reserve.subresource,
+             technology = resource.reserve.technology)
+
 
     # Produce outputs
     create_xml("resources_fossil_USA.xml") %>%
@@ -122,6 +128,7 @@ module_gcamusa_batch_resources_fossil_USA_xml <- function(command, ...) {
       add_xml_data(L211.ResReserveTechLifetime_USA, "ResReserveTechLifetime") %>%
       add_xml_data(L211.ResReserveTechDeclinePhase_USA, "ResReserveTechDeclinePhase") %>%
       add_xml_data(L211.ResReserveTechProfitShutdown_USA, "ResReserveTechProfitShutdown") %>%
+      add_xml_data(L211.ResReserveTechShrwt_fossil_USA, "ResTechShrwt") %>%
       add_xml_data(L211.RsrcPrice_F_USA, "RsrcPrice") %>%
       add_xml_data(L211.RsrcTechChange_USA, "RsrcTechChange") %>%
       add_xml_data(L211.RsrcCalProd_USA, "RsrcCalProd") %>%
@@ -159,6 +166,7 @@ module_gcamusa_batch_resources_fossil_USA_xml <- function(command, ...) {
                      "L211.ResReserveTechLifetime_USA",
                      "L211.ResReserveTechDeclinePhase_USA",
                      "L211.ResReserveTechProfitShutdown_USA",
+                     "L211.ResReserveTechShrwt_fossil_USA",
                      "L211.Sector_prod_USA",
                      "L211.Subsector_prod_USA",
                      "L211.SubsShrwtFlt_USA",

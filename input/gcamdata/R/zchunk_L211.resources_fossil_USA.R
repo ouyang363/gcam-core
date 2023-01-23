@@ -31,7 +31,8 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
              "L210.SubresourcePriceAdder",
              "L210.ResReserveTechLifetime",
              "L210.ResReserveTechDeclinePhase",
-             "L210.ResReserveTechProfitShutdown"))
+             "L210.ResReserveTechProfitShutdown",
+             "L210.ResTechShrwt"))
   } else if(command == driver.DECLARE_OUTPUTS) {
     return(c("L211.PrimaryCO2Coef_USA",
              "L211.Rsrc_F_USA",
@@ -45,6 +46,7 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
              "L211.ResReserveTechLifetime_USA",
              "L211.ResReserveTechDeclinePhase_USA",
              "L211.ResReserveTechProfitShutdown_USA",
+             "L211.ResReserveTechShrwt_fossil_USA",
              "L211.Sector_prod_USA",
              "L211.Subsector_prod_USA",
              "L211.SubsShrwtFlt_USA",
@@ -79,6 +81,7 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
     L210.ResReserveTechLifetime <- get_data(all_data, "L210.ResReserveTechLifetime", strip_attributes = TRUE)
     L210.ResReserveTechDeclinePhase <- get_data(all_data, "L210.ResReserveTechDeclinePhase", strip_attributes = TRUE)
     L210.ResReserveTechProfitShutdown <- get_data(all_data, "L210.ResReserveTechProfitShutdown", strip_attributes = TRUE)
+    L210.ResTechShrwt <- get_data(all_data, "L210.ResTechShrwt", strip_attributes = TRUE)
 
     # ===================================================
     # Perform computations
@@ -257,6 +260,15 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
                   filter(region == "USA" & resource == "natural gas") %>%
                   select(resource, resource.reserve.technology, year, median.shutdown.point, profit.shutdown.steepness),
                 by = "resource") -> L211.ResReserveTechProfitShutdown_USA
+
+    # 7) reserve.resource.technology share.weight - follow national assumption
+    L211.RsrcCalProd_USA %>%
+      select(region, resource, reserve.subresource) %>%
+      distinct() %>%
+      left_join(L210.ResTechShrwt %>%
+                  filter(region == "USA" & resource == "natural gas") %>%
+                  select(resource, resource.reserve.technology = technology, year, share.weight),
+                by = c("resource")) -> L211.ResReserveTechShrwt_fossil_USA
 
     # Part 3: Create state regional natural gas sectors which aggregate resource types.
     # -------------------------------------------------------------------------------------------
@@ -502,6 +514,14 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
                      "L210.ResReserveTechProfitShutdown") ->
       L211.ResReserveTechProfitShutdown_USA
 
+    L211.ResReserveTechShrwt_fossil_USA %>%
+      add_title("reserve resource technology shareweight") %>%
+      add_units("years") %>%
+      add_comments("copy global assumptions") %>%
+      add_precursors("L111.Prod_EJ_R_F_Yh_USA",
+                     "L210.ResTechShrwt") ->
+      L211.ResReserveTechShrwt_fossil_USA
+
     L211.Sector_prod_USA %>%
       add_title("supplysector logit table") %>%
       add_units("unitless") %>%
@@ -586,6 +606,7 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
                 L211.ResReserveTechLifetime_USA,
                 L211.ResReserveTechDeclinePhase_USA,
                 L211.ResReserveTechProfitShutdown_USA,
+                L211.ResReserveTechShrwt_fossil_USA,
                 L211.Sector_prod_USA,
                 L211.Subsector_prod_USA,
                 L211.SubsShrwtFlt_USA,
