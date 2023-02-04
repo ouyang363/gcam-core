@@ -365,7 +365,6 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
 
     # Part 4: Add these resources to the traded natural gas sector
     # -------------------------------------------------------------------------------------------
-    # "L211.TNGSubsInterp: The interpolation rule for the regions in the traded natural gas sector."
     L211.regional_ng_sector <- "natural gas production"
 
     L111.Prod_EJ_R_F_Yh_USA %>%
@@ -378,13 +377,16 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
       distinct(state) %>%
       mutate(region = "USA",
              supplysector = L211.regional_ng_sector,
-             subsector = paste(state, L211.gas_prod_sector_name),
+             subsector = ifelse(state == "AK", paste(state, L211.gas_prod_sector_name),
+                                paste("Lower48", L211.gas_prod_sector_name)),
              apply.to = "share-weight",
              from.year = as.character(MODEL_FINAL_BASE_YEAR),
              to.year = as.character(MODEL_YEARS[ length( MODEL_YEARS ) ]),
              interpolation.function="fixed" ) %>%
-      select(-state) -> L211.TNGSubsInterp_USA
+      select(-state) %>%
+      distinct() -> L211.TNGSubsInterp_USA
 
+    # "L211.TNGSubsInterp: The interpolation rule for the regions in the traded natural gas sector."
     L211.SubsInterpRule_States %>%
       bind_rows(L211.TNGSubsInterp_USA) -> L211.SubsInterpRule_USA
 
@@ -404,8 +406,9 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
       mutate(minicam.energy.input = L211.gas_prod_sector_name,
              region = "USA",
              supplysector = L211.regional_ng_sector,
-             subsector = paste(market.name, minicam.energy.input),
-             technology = subsector) -> L211.TNGTech
+             subsector = ifelse(market.name == "AK", paste(market.name, L211.gas_prod_sector_name),
+                                paste("Lower48", L211.gas_prod_sector_name)),
+             technology = paste(market.name, L211.gas_prod_sector_name)) -> L211.TNGTech
 
     L211.TNGTech %>%
       mutate(calOutputValue = round(value, 7),
@@ -417,9 +420,6 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
     L211.TNGTech %>%
       mutate(coefficient = 1) %>%
       select(LEVEL2_DATA_NAMES[["TechCoef"]]) -> L211.TNGTechCoef
-
-
-
 
     # ===================================================
     # Produce outputs
