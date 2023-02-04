@@ -71,7 +71,7 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
     # NOTE: FUNCTION STILL NEEDS TO BE RE-WRITTEN IN DPLYR
     compute_offshore_costs <- function( supply, costs ) {
       ret.costs <- data.frame()
-      grades <- c( "grade.1", "grade.2", "grade.3")
+      grades <- c( "grade.hist", "grade.1", "grade.2", "grade.3")
       supply$cumul.1 <- supply$grade.1
       supply$cumul.2 <- supply$cumul.1 + supply$grade.2
       supply$cumul.3 <- supply$cumul.2 + supply$grade.3
@@ -81,13 +81,14 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
         lmfit <- lm( formula = price ~ sqrt( quantity ) + quantity, data=costs.region )
         ret.costs.region <- data.frame( region=r, grade=grades, cost=0 )
         min.cost <- min( costs.region$price ) + 1.5
-        ret.costs.region$cost[1] <- min.cost
-        ret.costs.region$cost[2:3] <- predict( lmfit, data.frame( quantity=c( supply.region$cumul.2, supply.region$cumul.3 ) ) )
+        ret.costs.region$cost[1] <- min.cost * 0.5
+        ret.costs.region$cost[2] <- min.cost * 0.9
+        ret.costs.region$cost[3:4] <- predict( lmfit, data.frame( quantity=c( supply.region$cumul.2, supply.region$cumul.3 ) ) )
         # TODO: get better grasp of how "reserve adjustment factors" was taking into
         # account.  They claim a value of 0.4.
-        ret.costs.region$cost[2] <- ret.costs.region$cost[2] * 0.6
-        ret.costs.region$cost[2] <- pmax( ret.costs.region$cost[2], ret.costs.region$cost[1] * 1.1 )
         ret.costs.region$cost[3] <- ret.costs.region$cost[3] * 0.6
+        ret.costs.region$cost[3] <- pmax( ret.costs.region$cost[3], ret.costs.region$cost[2] * 1.1 )
+        ret.costs.region$cost[4] <- ret.costs.region$cost[3] * 0.6
         ret.costs <- rbind( ret.costs, ret.costs.region )
       }
       return(ret.costs)
@@ -289,8 +290,9 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       summarise(low_cost = mean(low_cost),
                 high_cost = mean(high_cost)) %>%
       ungroup() %>%
-      mutate(grade.1 = low_cost,
-             grade.2 = (high_cost + low_cost ) / 2 + low_cost,
+      mutate(grade.hist = low_cost,
+             grade.1 = low_cost + 1 * (high_cost - low_cost) / 3,
+             grade.2 = low_cost + 2 * (high_cost - low_cost) / 3,
              grade.3 = high_cost) %>%
       gather(grade, cost, -reserve.subresource) %>%
       filter(grepl("grade", grade)) %>%
@@ -382,7 +384,7 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
     # and cost, but technically "historical productions" are no longer available
     # so why still added into the resource curve
 
-    L111.ResCurve <- bind_rows(L111.GradeAvail, L111.GradeAvail.additional) %>%
+    L111.ResCurve <- bind_rows(L111.CumulHistProduction, L111.GradeAvail, L111.GradeAvail.additional) %>%
       left_join_error_no_match(L111.GradeCost, by = c("region", "reserve.subresource", "grade")) %>%
       mutate(available = round(available, 7),
              extractioncost = round(cost, 3)) %>%
