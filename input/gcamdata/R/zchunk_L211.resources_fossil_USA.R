@@ -24,6 +24,8 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
     return(c(FILE = "gcam-usa/A23.gas_sector_vertical",
              FILE = "energy/A10.TechChange",
              FILE = "gcam-usa/A10.subsector_interp",
+             FILE = "gcam-usa/EIA_gas_market_wellhead_price_states",
+             FILE = "gcam-usa/EIA_NG_prod_mapping_wellhead_price",
              "L111.ResCurves_EJ_R_Ffos_USA",
              "L111.Prod_EJ_R_F_Yh_USA",
              "L210.RsrcPrice",
@@ -73,6 +75,8 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
     A23.gas_sector_vertical <- get_data(all_data, "gcam-usa/A23.gas_sector_vertical", strip_attributes = TRUE)
     A10.TechChange <- get_data(all_data, "energy/A10.TechChange", strip_attributes = TRUE)
     A10.subsector_interp <- get_data(all_data, "gcam-usa/A10.subsector_interp", strip_attributes = TRUE)
+    EIA_gas_market_wellhead_price_states <- get_data(all_data, "EIA_gas_market_wellhead_price_states", strip_attributes = TRUE)
+    EIA_NG_prod_mapping_wellhead_price <- get_data(all_data, "EIA_NG_prod_mapping_wellhead_price", strip_attributes = TRUE)
     L111.ResCurves_EJ_R_Ffos_USA <- get_data(all_data, "L111.ResCurves_EJ_R_Ffos_USA", strip_attributes = TRUE)
     L111.Prod_EJ_R_F_Yh_USA <- get_data(all_data, "L111.Prod_EJ_R_F_Yh_USA", strip_attributes = TRUE)
     L210.RsrcPrice <- get_data(all_data, "L210.RsrcPrice", strip_attributes = TRUE)
@@ -82,6 +86,7 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
     L210.ResReserveTechDeclinePhase <- get_data(all_data, "L210.ResReserveTechDeclinePhase", strip_attributes = TRUE)
     L210.ResReserveTechProfitShutdown <- get_data(all_data, "L210.ResReserveTechProfitShutdown", strip_attributes = TRUE)
     L210.ResTechShrwt <- get_data(all_data, "L210.ResTechShrwt", strip_attributes = TRUE)
+
 
     # ===================================================
     # Perform computations
@@ -114,14 +119,52 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
 
 
     # L211.RsrcPrice_F_USA
-    # copy USA historical resource price to all states
+    # scale the current region USA price to states
+    # scalars are based on the ratio between states' and US' historical wellhead production prices in EIA
+    # for missing years, use historical average
+
+    # 1) clean up region mapping
+    EIA_gas_market_wellhead_price_states_raw <- EIA_gas_market_wellhead_price_states %>%
+      gather(category, value, -Date) %>%
+      rename(year = Date) %>%
+      filter(year %in% HISTORICAL_YEARS) %>%
+      left_join_error_no_match(EIA_NG_prod_mapping_wellhead_price, by = "category") %>%
+      filter(state != "other") %>%
+      select(-category)
+
+    # 2) develop state-to-US scalars
+    EIA_gas_market_wellhead_price_states_scalars <- EIA_gas_market_wellhead_price_states_raw %>%
+      filter(state != "USA") %>%
+      left_join(EIA_gas_market_wellhead_price_states_raw %>%
+                  filter(state == "USA") %>%
+                  select(year, value_usa = value),
+                by = "year") %>%
+      mutate(scalars = value / value_usa) %>%
+      group_by(state) %>%
+      # becuase different states have different years available, the late available year is no later
+      # than 2010, here just use the historical average scalar
+      mutate(scalar_average = mean(scalars, na.rm = TRUE)) %>%
+      ungroup() %>%
+      # for states no value available for any historcal year, just use the USA value (scalar = 1)
+      # this is only for the case of Navada
+      mutate(scalar_average = ifelse(is.na(scalar_average), 1, scalar_average)) %>%
+      select(state, scalar = scalar_average) %>%
+      distinct()
+
+    # scale state-level calibrated prices based on historical wellhead prices relative to USA
     L111.Prod_EJ_R_F_Yh_USA %>%
       filter(year %in% MODEL_BASE_YEARS) %>%
       select(region, resource, year) %>%
       distinct() %>%
       left_join_error_no_match(L210.RsrcPrice %>%
                                  filter(region == "USA" & resource == "natural gas") %>%
-                                 select(year, price), by = "year") -> L211.RsrcPrice_F_USA
+                                 select(year, price), by = "year") %>%
+      # use left_join because Idaho has historical productions but no wellhead price info available
+      left_join(EIA_gas_market_wellhead_price_states_scalars, by = c("region" = "state")) %>%
+      # replace NA scalars as 1 (using USA value)
+      replace_na(list("scalar" = 1)) %>%
+      mutate(price = price * scalar ) %>%
+      select(-scalar) -> L211.RsrcPrice_F_USA
 
     # L211.RsrcTechChange_USA: resource technological change
     L111.Prod_EJ_R_F_Yh_USA %>%
@@ -441,8 +484,10 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
     L211.RsrcPrice_F_USA %>%
       add_title("add a resource price in base year") %>%
       add_units("TODO") %>%
-      add_comments("copy global assumptions") %>%
-      same_precursors_as("L211.PrimaryCO2Coef") ->
+      add_comments("scale USA price assumptions to each state based on EIA historical wellhead prices") %>%
+      same_precursors_as("L211.PrimaryCO2Coef") %>%
+      add_precursors("gcam-usa/EIA_gas_market_wellhead_price_states",
+                     "gcam-usa/EIA_NG_prod_mapping_wellhead_price") ->
       L211.RsrcPrice_F_USA
 
     L211.RsrcCalProd_USA %>%
