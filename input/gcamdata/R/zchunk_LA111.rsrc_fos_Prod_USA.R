@@ -502,7 +502,7 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       mutate(grade = "grade.hist") %>%
       group_by(region, resource, reserve.subresource, grade) %>%
       summarise(available = sum(value)) %>%
-      ungroup() -> L111.CumulmHistProduction
+      ungroup() -> L111.CumulHistProduction
 
     # Merge costs and available
     # Sort by costs while grouping by state and resource to get grades in an appropriate order
