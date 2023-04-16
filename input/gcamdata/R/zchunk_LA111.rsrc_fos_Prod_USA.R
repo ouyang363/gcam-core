@@ -41,6 +41,7 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
              FILE = "gcam-usa/EIA_NG_prod_mapping_total",
              FILE = "gcam-usa/EIA_NG_prod_mapping_coalbed",
              FILE = "gcam-usa/EIA_NG_prod_mapping_shalegas",
+             FILE = "energy/A10.ResSubresourceProdLifetime",
              "L111.Prod_EJ_R_F_Yh",
              "L111.RsrcCurves_EJ_R_Ffos"))
   } else if(command == driver.DECLARE_OUTPUTS) {
@@ -69,6 +70,7 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
     EIA_NG_prod_mapping_total <- get_data(all_data, "gcam-usa/EIA_NG_prod_mapping_total")
     EIA_NG_prod_mapping_coalbed <- get_data(all_data, "gcam-usa/EIA_NG_prod_mapping_coalbed")
     EIA_NG_prod_mapping_shalegas <- get_data(all_data, "gcam-usa/EIA_NG_prod_mapping_shalegas")
+    A10.ResSubresourceProdLifetime <- get_data(all_data, "energy/A10.ResSubresourceProdLifetime")
     L111.Prod_EJ_R_F_Yh <- get_data(all_data, "L111.Prod_EJ_R_F_Yh", strip_attributes = TRUE)
     L111.RsrcCurves_EJ_R_Ffos <- get_data(all_data, "L111.RsrcCurves_EJ_R_Ffos", strip_attributes = TRUE)
 
@@ -438,14 +440,69 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
 
     # We need to add resource to cover historical production since it is not included in the supply curves
     # Do not include the first year for cumulative production since the model does not consider it
+
+    # Back calculate reserve additions to be exactly enough given our historical production
+    # and assumed production lifetime.  Note production lifetimes may not cover the entire
+    # historical period making the calculation a bit more tricky.  We use the lag_prod_helper
+    # to help project forward production by each historical vintage so we can take this into
+    # account.
+
+    # ------- FOSSIL RESOURCE RESERVE ADDITIONS
+
+    GCAM_timesteps <- diff(MODEL_BASE_YEARS)
+    start.year.timestep <- modeltime.PERIOD0_TIMESTEP
+    model_year_timesteps <- tibble(year = MODEL_BASE_YEARS, timestep = c(start.year.timestep, GCAM_timesteps))
+
+    # a pipelne helper function to help back calculate new additions to reserve
+    # from historical production
+    lag_prod_helper <- function(year, value, year_operate, final_year) {
+      ret <- value
+      for(i in seq_along(year)) {
+        if(i == 1) {
+          # first year assume all production in this vintage
+          ret[i] <- value[i]
+        } else if( year_operate[i] > final_year[i]) {
+          if(year_operate[i -1] >= final_year[i]) {
+            # retired
+            ret[i] <- 0
+          } else {
+            # final timestep that is operating so we must adjust the production
+            # by the number of years into the timestep it should have operated
+            # incase lifetime and timesteps do not neatly overlap
+            ret[i] <- ret[i - 1] * (year_operate[i] - final_year[i]) / (year_operate[i] - year_operate[i-1])
+          }
+        } else if(year_operate[i] > year[i]) {
+          # assume a vintage that as already invested continues at full
+          # capacity
+          ret[i] <- ret[i -1]
+        } else {
+          # to determine new investment we take the difference between
+          # what the total should be and subtract off production from
+          # previous vintages that are still operating
+          ret[i] <- 0
+          ret[i] <- pmax(value[i] - sum(ret[year_operate == year[i]]), 0)
+        }
+      }
+      ret
+    }
+
     L111.gas_production_states_EJ %>%
+      filter(year %in% MODEL_BASE_YEARS) %>%
+      left_join_error_no_match(select(A10.ResSubresourceProdLifetime, resource, lifetime = avg.prod.lifetime),
+                               by=c("resource")) %>%
+      left_join_error_no_match(model_year_timesteps, by = c("year")) %>%
+      repeat_add_columns(tibble(year_operate = MODEL_BASE_YEARS)) %>%
+      mutate(final_year = pmin(MODEL_BASE_YEARS[length(MODEL_BASE_YEARS)], (year - timestep + lifetime))) %>%
+      filter(year_operate >= year - timestep + 1) %>%
+      group_by(region, resource, reserve.subresource) %>%
+      mutate(value = lag_prod_helper(year, value, year_operate, final_year)) %>%
+      ungroup() %>%
+      filter(year == year_operate) %>%
+      mutate(value = value * lifetime) %>%
       mutate(grade = "grade.hist") %>%
       group_by(region, resource, reserve.subresource, grade) %>%
-      mutate(timestep = year - lag(year, n = 1L)) %>%
-      filter(timestep != is.na(timestep)) %>%
-      mutate(value = value * timestep) %>%
       summarise(available = sum(value)) %>%
-      ungroup() -> L111.CumulHistProduction
+      ungroup() -> L111.CumulmHistProduction
 
     # Merge costs and available
     # Sort by costs while grouping by state and resource to get grades in an appropriate order
@@ -478,6 +535,7 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
                      "gcam-usa/BOEM_gas_supply_EJ",
                      "gcam-usa/ETSAP_gas_cost_range",
                      "gcam-usa/BOEM_gas_cost",
+                     "energy/A10.ResSubresourceProdLifetime",
                      "L111.RsrcCurves_EJ_R_Ffos") ->
       L111.ResCurves_EJ_R_Ffos_USA
 
