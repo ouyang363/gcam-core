@@ -1,4 +1,4 @@
-# File: A23.gas_subsector_shrwt_interpto.csv
+# File: A10.fossil_subsector_shrwt_interpto.csv
 # Title: subsector share-weights which need a to-value
 # Units: unitless
 # Source: None (GCAM assumptions)
@@ -7,3 +7,5 @@
 region,supplysector,subsector,apply.to,from.year,to.year,to.value,interpolation.function
 USA,regional natural gas,imported natural gas,share-weight,2015,2050,0,linear
 USA,regional natural gas,imported natural gas,share-weight,2050,end-year,0,fixed
+USA,regional oil,imported oil,share-weight,2015,2050,0,linear
+USA,regional oil,imported oil,share-weight,2050,end-year,0,fixed

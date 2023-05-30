@@ -1,5 +1,5 @@
-# File: A23.gas_tech_associations.csv
-# Title: Global technologies for the natural gas sector
+# File: A10.fossil_tech_associations.csv
+# Title: Global technologies for the fossil resource sector
 # Units: unitless
 # Source: None (GCAM assumptions)
 # Column types: ccccn
@@ -7,4 +7,5 @@
 supplysector,subsector,stub.technology,minicam.energy.input,coefficient
 regional natural gas,domestic natural gas,domestic natural gas,natural gas production,1
 regional natural gas,imported natural gas,imported natural gas,traded natural gas,1
-
+regional oil,domestic oil,domestic oil,crude oil production,1
+regional oil,imported oil,imported oil,traded oil,1

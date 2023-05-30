@@ -31,13 +31,22 @@
 module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
   if(command == driver.DECLARE_INPUTS) {
     return(c(FILE = "gcam-usa/USGS_gas_supply_Quad",
+             FILE = "gcam-usa/USGS_oil_supply_Quad",
              FILE = "gcam-usa/USGS_basin_state_mapping",
              FILE = "gcam-usa/BOEM_gas_supply_EJ",
+             FILE = "gcam-usa/BOEM_oil_supply_EJ",
              FILE = "gcam-usa/ETSAP_gas_cost_range",
+             FILE = "gcam-usa/ETSAP_oil_cost_range",
              FILE = "gcam-usa/BOEM_gas_cost",
+             FILE = "gcam-usa/BOEM_oil_cost",
              FILE = "gcam-usa/EIA_gas_market_prod_state_MMcf_total",
              FILE = "gcam-usa/EIA_gas_market_prod_state_Bcf_coalbed",
              FILE = "gcam-usa/EIA_gas_market_prod_state_Bcf_shalegas",
+             FILE = "gcam-usa/EIA_oil_market_prod_state_thousBBL_total",
+             FILE = "gcam-usa/EIA_tight_oil_production_mbbl_per_day",
+             FILE = "gcam-usa/EIA_tight_oil_play_state_mapping",
+             FILE = "gcam-usa/EIA_oil_GOM_refineries_input_2022",
+             FILE = "gcam-usa/Alaska_offshore_gas_oil_2021",
              FILE = "gcam-usa/EIA_NG_prod_mapping_total",
              FILE = "gcam-usa/EIA_NG_prod_mapping_coalbed",
              FILE = "gcam-usa/EIA_NG_prod_mapping_shalegas",
@@ -60,13 +69,22 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
 
     # Load required inputs
     USGS_gas_supply_Quad <- get_data(all_data, "gcam-usa/USGS_gas_supply_Quad")
+    USGS_oil_supply_Quad <- get_data(all_data, "gcam-usa/USGS_oil_supply_Quad")
     USGS_basin_state_mapping <- get_data(all_data, "gcam-usa/USGS_basin_state_mapping")
     BOEM_gas_supply_EJ <- get_data(all_data, "gcam-usa/BOEM_gas_supply_EJ")
+    BOEM_oil_supply_EJ <- get_data(all_data, "gcam-usa/BOEM_oil_supply_EJ")
     ETSAP_gas_cost_range <- get_data(all_data, "gcam-usa/ETSAP_gas_cost_range", strip_attributes = TRUE)
+    ETSAP_oil_cost_range <- get_data(all_data, "gcam-usa/ETSAP_oil_cost_range", strip_attributes = TRUE)
     BOEM_gas_cost <- get_data(all_data, "gcam-usa/BOEM_gas_cost", strip_attributes = TRUE)
+    BOEM_oil_cost <- get_data(all_data, "gcam-usa/BOEM_oil_cost", strip_attributes = TRUE)
     EIA_gas_market_prod_state_MMcf_total <- get_data(all_data, "gcam-usa/EIA_gas_market_prod_state_MMcf_total")
     EIA_gas_market_prod_state_Bcf_coalbed <- get_data(all_data, "gcam-usa/EIA_gas_market_prod_state_Bcf_coalbed")
     EIA_gas_market_prod_state_Bcf_shalegas <- get_data(all_data, "gcam-usa/EIA_gas_market_prod_state_Bcf_shalegas")
+    EIA_oil_market_prod_state_thousBBL_total <- get_data(all_data, "gcam-usa/EIA_oil_market_prod_state_thousBBL_total")
+    EIA_tight_oil_production_mbbl_per_day <- get_data(all_data, "gcam-usa/EIA_tight_oil_production_mbbl_per_day")
+    EIA_tight_oil_play_state_mapping <- get_data(all_data, "gcam-usa/EIA_tight_oil_play_state_mapping")
+    EIA_oil_GOM_refineries_input_2022 <- get_data(all_data, "gcam-usa/EIA_oil_GOM_refineries_input_2022")
+    Alaska_offshore_gas_oil_2021 <- get_data(all_data, "gcam-usa/Alaska_offshore_gas_oil_2021")
     EIA_NG_prod_mapping_total <- get_data(all_data, "gcam-usa/EIA_NG_prod_mapping_total")
     EIA_NG_prod_mapping_coalbed <- get_data(all_data, "gcam-usa/EIA_NG_prod_mapping_coalbed")
     EIA_NG_prod_mapping_shalegas <- get_data(all_data, "gcam-usa/EIA_NG_prod_mapping_shalegas")
@@ -98,13 +116,13 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
         # account.  They claim a value of 0.4.
         ret.costs.region$cost[3] <- ret.costs.region$cost[3] * 0.6
         ret.costs.region$cost[3] <- pmax( ret.costs.region$cost[3], ret.costs.region$cost[2] * 1.1 )
-        ret.costs.region$cost[4] <- ret.costs.region$cost[3] * 0.6
+        ret.costs.region$cost[4] <- ret.costs.region$cost[4] * 0.6
         ret.costs <- rbind( ret.costs, ret.costs.region )
       }
       return(ret.costs)
     }
 
-    # Part 1: historical production
+    # Part 1a: historical production of natural gas
     # ------------------------------------------------------------------------------------------------------------------------------
     # clean up data
     # Federal offshore are aggregated into the nearest states
@@ -115,7 +133,7 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
     # unconventional gas includes coalbed methane and shale gas, and their productions are separated reported by EIA
     # conventional gas is obtained by subtracting the unconventional gas from total onshore gas
 
-    # 1.1 Split production into onshore and offshore
+    # 1.1a Split production into onshore and offshore
 
     # total production raw data
     L111.gas_production_raw <- EIA_gas_market_prod_state_MMcf_total %>%
@@ -140,9 +158,9 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       # for states with offshore productions they already report onshore and offshore separately, so we don't need their "total"
       filter(!(state %in% offshore_states$state & type == "total")) %>%
       # for states without offshore productions, their "total" should be all "onshore"
-      mutate(type = ifelse(type == "total", "onshore", type))
+      mutate(type = if_else(type == "total", "onshore", type))
 
-    # 1.2 Split onshore into conventional and unconventional
+    # 1.2a Split onshore into conventional and unconventional
 
     # coalbed methane
     L111.gas_production_coalbed <- EIA_gas_market_prod_state_Bcf_coalbed %>%
@@ -183,9 +201,9 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       # there are a few cases (such as ND) that have negative "onshore conventional", i.e.
       # the sum of unconventional production exceeds the total production
       # in this case we assume 0 conventional production
-      mutate(value = ifelse(value < 0, 0, value))
+      mutate(value = if_else(value < 0, 0, value))
 
-    # 1.3 clean up offshore production
+    # 1.3a clean up offshore production
 
     # process Golf of Mexico Federal into the neighboring three states that used to beyond "federal offshore"
     # state shares are based on average historical productions
@@ -213,7 +231,7 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       summarise(value = sum(value)) %>%
       ungroup()
 
-    # 1.4 combine onshore (conventional and unconventional) and offshore
+    # 1.4a combine onshore (conventional and unconventional) and offshore
     L111.gas_production_states_EJ_EIA <- L111.gas_production_onshore %>%
       bind_rows(L111.gas_production_offshore) %>%
       rename(region = state) %>%
@@ -223,7 +241,7 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       summarise(eia.prod = sum(value)) %>%
       ungroup()
 
-    # 1.5 use EIA produciton ratio to downscale national total values
+    # 1.5a use EIA produciton ratio to downscale national total values
     # Convert EIA wellhead production data to shares
     L111.gas_production_states_EJ_EIA %>%
       left_join_error_no_match(L111.gas_production_states_EJ_EIA %>%
@@ -247,7 +265,175 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       select(region, resource, reserve.subresource, year, value) -> L111.gas_production_states_EJ
 
 
-    # Part 2: gas supply (supply by grade)
+    # Part 1b: historical production of crude oil
+    # ------------------------------------------------------------------------------------------------------------------------------
+    # clean up data
+    # Federal offshore are aggregated into the nearest states
+    # For PADD5: Federal offshore productions are split into California and Alaska, and California bans future offshore oil production
+    # for Federal Gulf of Mexico (PADD3), we allocate them into the nearest three states
+
+    # there is no unconventional oil in the US, so crude oil production is split into onshore and offshore
+
+    # 1.1b Split production into onshore and offshore
+
+    # total production raw data
+    L111.oil_production_raw_EJ <- EIA_oil_market_prod_state_thousBBL_total %>%
+      gather(category, value, -Year) %>%
+      replace_na(list(value = 0)) %>%
+      rename(year = Year) %>%
+      filter(year %in% HISTORICAL_YEARS) %>%
+      # rename PADD5 federal offshore into AK_CA for clean up
+      mutate(category = gsub("Federal Offshore PADD 5", "Federal Offshore--Alaska and California", category)) %>%
+      # filter out aggregated Petroleum Administration for Defense Districts (PADD) regions or national total
+      filter(!grepl("PADD|U.S.", category)) %>%
+      # clean up columns
+      mutate(category = gsub(" Field Production of Crude Oil thousBBL", "", category)) %>%
+      mutate(type = if_else(grepl("Offshore", category), "offshore", "onshore")) %>%
+      # use left_join because offshore regions are still aggreated
+      left_join(tibble(category = state.name, state = state.abb), by = "category") %>%
+      mutate(state = case_when(
+        grepl("Gulf of Mexico", category) ~ "GOM",
+        # according to Alaska Oil and Gas Conservation Commission Offshore Wells list, all AK "ARCTIC OCEAN, FED."
+        # wells are categorized as "Exploratory", which means AK doesn't have offshore oil production from federal water
+        # thus here assign all federal offshore oil of PADD5 into CA offshore
+        grepl("Alaska and California", category) ~ "CA",
+        # combine Alaska field north and south into AK
+        grepl("Alaska", category) ~ "AK",
+        T ~ state
+      )) %>%
+      group_by(state, type, year) %>%
+      summarise(value = sum(value)) %>%
+      ungroup %>%
+      # convert thousand bbl into million bbl then convert into EJ
+      mutate(value = value * 1e-3 * CONV_MBBL_EJ)
+
+    # 1.2b Split AK offshore oil production from state water, based on Alaska Oil and Gas Conservation Commission Offshore data
+    # here some AK production from North Slope come from state offshore water (within 3 miles of the coast)
+    # manually split them based on AK's own data
+    L111.oil_production_raw_EJ_AK_split <- L111.oil_production_raw_EJ %>%
+      filter(state == "AK") %>%
+      left_join(Alaska_offshore_gas_oil_2021 %>% filter(ProductionType == "Oil Production") %>%
+                  select(year, oilprod_EJ) %>%
+                  rename(offshore = oilprod_EJ), by = "year") %>%
+      replace_na(list("offshore" = 0)) %>%
+      mutate(onshore = value - offshore) %>%
+      select(state, year, onshore, offshore) %>%
+      gather(type, value, -state, -year)
+
+    # combine with original onshore/offshore data
+    L111.oil_production_clean_EJ <- L111.oil_production_raw_EJ %>%
+      filter(state != "AK") %>%
+      bind_rows(L111.oil_production_raw_EJ_AK_split)
+
+    # 1.3b Split onshore into conventional and unconventional (tight oil)
+    EIA_tight_oil_produciton_EJ <- EIA_tight_oil_production_mbbl_per_day %>%
+      gather(oil_play, mbbl_per_day, -Date) %>%
+      separate(Date, into = c("days", "month", "year"), sep = "-") %>%
+      # since the date here indicate the last day of each month, it also indicates the number of days in each month
+      mutate(days = as.integer(days)) %>%
+      # assume the same daily production over the entire month as the last day's daily production
+      mutate(mbbl_per_month = mbbl_per_day * days) %>%
+      # paste year into full year
+      # here the earlier year available is 2000, so just paste "20" to each year
+      mutate(year = as.integer(paste0("20", year))) %>%
+      # obtain yearly production for each play
+      group_by(oil_play, year) %>%
+      summarise(mbbl_per_year = sum(mbbl_per_month)) %>%
+      ungroup() %>%
+      # use left_join because same play will be mapped to multiple states
+      left_join(EIA_tight_oil_play_state_mapping, by = "oil_play") %>%
+      mutate(value_EJ = mbbl_per_year * share * CONV_MBBL_EJ) %>%
+      group_by(state, year) %>%
+      summarise(value_tight_oil_EJ = sum(value_EJ)) %>%
+      ungroup()
+
+    L111.oil_production_onshore <- L111.oil_production_clean_EJ %>%
+      filter(type == "onshore") %>%
+      # use left_join because not all states have unconventional oil so NA will exist
+      left_join(EIA_tight_oil_produciton_EJ, by = c("state", "year")) %>%
+      replace_na(list(value_tight_oil_EJ = 0)) %>%
+      # the EIA_tight_oil_play_state_mapping has been adjusted to make sure tight oil (unconventional oil) is less than total production
+      mutate(value_conv_oil = value - value_tight_oil_EJ) %>%
+      select(state, year, value_conv_oil, value_tight_oil_EJ) %>%
+      gather(var, value, -state, -year) %>%
+      mutate(type = if_else(var == "value_conv_oil", "onshore conventional", "onshore unconventional")) %>%
+      select(names(L111.oil_production_clean_EJ))
+
+    # 1.4b Split offshore into states
+
+    # define offshore states
+    # GOM region, split federal GOM production into neighbor states based on coastal refinery input (EIA)
+    # shares are calculated as year-specific starting from 1985
+    offshore_states_oil_GOM_shares <- EIA_oil_GOM_refineries_input_2022 %>%
+      gather(RefiningDistrict, value, -Year) %>%
+      # keep gulf coastal refining district only
+      # filter out PADD 3 total
+      filter(grepl("Gulf Coast", RefiningDistrict) & !grepl("PADD 3", RefiningDistrict)) %>%
+      # assume all GOM oil (offshore oil) are produced by TX and LA
+      # shares based on their refinery input
+      mutate(state = if_else(grepl("Texas", RefiningDistrict), "TX", "LA")) %>%
+      select(-RefiningDistrict) %>%
+      group_by(Year) %>%
+      mutate(share = value / sum(value)) %>%
+      ungroup() %>%
+      mutate(region = "GOM", type = "offshore") %>%
+      rename(year = Year) %>%
+      select(-value) %>%
+      # extrapolate historical shares to all HISTORICAL_YEARS (starting from 1971)
+      complete(nesting(region, type, state), year = HISTORICAL_YEARS) %>%
+      group_by(region, type, state) %>%
+      # using the earliest available year
+      mutate(share = approx_fun(year, share, rule = 2)) %>%
+      ungroup()
+
+    L111.oil_production_offshore <- L111.oil_production_clean_EJ %>%
+      filter(type == "offshore") %>%
+      rename(region = state, value_agg = value) %>%
+      # use left_join because we need to copy offshore regions into states (# of rows changed)
+      # also here just apply GOM shares, AK and CA already split out
+      left_join(offshore_states_oil_GOM_shares, by = c("region", "type", "year")) %>%
+      # fill in AK and CA, and their shares as 1s
+      mutate(state = if_else(is.na(state), region, state),
+             share = if_else(is.na(share), 1.0, share)) %>%
+      # apply year-specific shares to aggregated production for offshore regions
+      mutate(value = value_agg * share) %>%
+      select(names(L111.oil_production_clean_EJ))
+
+    # 1.5b combine onshore (conventional and unconventional) and offshore
+    L111.oil_production_states_EJ_EIA <- bind_rows(L111.oil_production_onshore,
+                                                   L111.oil_production_offshore) %>%
+      rename(region = state) %>%
+      mutate(resource = "crude oil",
+             reserve.subresource = paste0(type, " oil")) %>%
+      group_by(region, resource, reserve.subresource, year) %>%
+      summarise(eia.prod = sum(value)) %>%
+      ungroup()
+
+    # 1.6b use EIA production ratio to downscale national total values
+    # Convert EIA wellhead production data to shares
+    L111.oil_production_states_EJ_EIA %>%
+      left_join_error_no_match(L111.oil_production_states_EJ_EIA %>%
+                                 group_by(year) %>%
+                                 summarise(eia.total = sum(eia.prod)) %>%
+                                 ungroup(), by = c("year")) %>%
+      mutate(share = eia.prod / eia.total) %>%
+      replace_na(list(share = 0)) -> L111.EIA_oil_EJ
+
+    # Obtain GCAM USA data for natural gas production
+    L111.Prod_EJ_R_F_Yh %>%
+      filter(GCAM_region_ID == gcamusa.USA_REGION_NUMBER, fuel %in% c( "crude oil")) %>%
+      group_by(year) %>%
+      summarise(us.prod = sum(value)) %>%
+      ungroup() -> L111.USA_oil_EJ
+
+    # Use shares to downscale the GCAM USA natural gas production data to states
+    L111.EIA_oil_EJ %>%
+      left_join_error_no_match(L111.USA_oil_EJ, by = c("year")) %>%
+      mutate(value = us.prod * share) %>%
+      select(region, resource, reserve.subresource, year, value) -> L111.oil_production_states_EJ
+
+
+    # Part 2a: gas supply (supply by grade)
     # ------------------------------------------------------------------------------------------------------------------------------
 
     # Map supply from basins to states.
@@ -257,8 +443,9 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       # number of rows will change since one basin could be mapped to multiple states
       left_join(USGS_gas_supply_Quad, by = c("basin")) %>%
       gather(type, value, -state, -basin, -fraction, -row, -resource) %>%
+      # 1 quad = 10^15 Btu = 1.055 EJ
       mutate(value = value * fraction * CONV_BTU_KJ ) %>%
-      # aggregate all types into the oneshore natural gas
+      # aggregate all types into the onshore natural gas
       rename(region = state) %>%
       mutate(reserve.subresource = case_when(
         grepl("conventional", resource) ~ "onshore conventional gas",
@@ -291,8 +478,8 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       # still use the historical production share of GOM states as the proxy for supply
       # use left_join because AK and CA will be NAs
       left_join(GOM_share %>% mutate(region = "GOM"), by = "region") %>%
-      mutate(state = ifelse(is.na(state), region, state),
-             GOM_share = ifelse(is.na(GOM_share), 1.0, GOM_share)) %>%
+      mutate(state = if_else(is.na(state), region, state),
+             GOM_share = if_else(is.na(GOM_share), 1.0, GOM_share)) %>%
       mutate(value = value * GOM_share) %>%
       mutate(resource = "natural gas",
              reserve.subresource = "offshore gas") %>%
@@ -304,7 +491,7 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       bind_rows(L111.gas_supply_state_T_EJ_offshore_wide) -> L111.gas_supply_state_T_EJ_wide
 
     # harmonize with the national supply
-    # 1) create state shares from USGS data
+    # 1a) create state shares from USGS data
     L111.gas_supply_state_T_EJ_wide %>%
       mutate(total = grade.1 + grade.2 + grade.3) %>%
       group_by(region) %>%
@@ -313,14 +500,14 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       mutate(share = total / region_sum) %>%
       select(-total, -region_sum) -> L111.additional_gas_supply_downscale
 
-    # 2) sum all natural gas resources to national total (USGS and BOEM data).
+    # 2a) sum all natural gas resources to national total (USGS and BOEM data).
     L111.gas_supply_state_T_EJ_wide %>%
       mutate(GCAM_region_ID = gcamusa.USA_REGION_NUMBER) %>%
       group_by(GCAM_region_ID) %>%
       summarise(USGS_total = sum(grade.1, grade.2, grade.3)) %>%
       ungroup() -> L111.gas_supply_USA_USGS_BOEM_T_EJ
 
-    # 3) Subtract from energy data system natural gas resource curve (L111.RsrcCurves_EJ_R_Ffos)
+    # 3a) Subtract from energy data system natural gas resource curve (L111.RsrcCurves_EJ_R_Ffos)
     # to get remaining natural gas resources.
     L111.RsrcCurves_EJ_R_Ffos %>%
       filter(GCAM_region_ID == gcamusa.USA_REGION_NUMBER) %>%
@@ -330,8 +517,8 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       left_join_error_no_match(L111.gas_supply_USA_USGS_BOEM_T_EJ, by = c("GCAM_region_ID")) %>%
       mutate(cum_avail_remain = cum_avail - USGS_total) %>%
       filter(cum_avail_remain >= 0) %>%
-      # reset the starting point of the lowest grade as the cumulaitve remaining of "additional gas"
-      mutate(available = ifelse(grade == min(grade), cum_avail_remain, available)) %>%
+      # reset the starting point of the lowest grade as the cumulative remaining of "additional gas"
+      mutate(available = if_else(grade == min(grade), cum_avail_remain, available)) %>%
       select(-cum_avail, -USGS_total, -cum_avail_remain) %>%
       mutate(grade = paste("grade", grade, sep = ' ')) ->
       L111.RsrcCurves_EJ_R_gas_additional
@@ -349,14 +536,135 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       select(region, resource, reserve.subresource, grade, extractioncost, available) -> L111.additional_gas_supply_state_EJ
 
 
-    # Part 3: gas supply cost (extraction cost by grade)
+
+    # Part 2b: oil supply (supply by grade)
     # ------------------------------------------------------------------------------------------------------------------------------
+
+    # Map supply from basins to states.
+    USGS_basin_state_mapping %>%
+      # number of rows will change since one basin could be mapped to multiple states
+      left_join(USGS_oil_supply_Quad, by = c("basin")) %>%
+      gather(type, value, -state, -basin, -fraction, -row, -resource) %>%
+      # 1 quad = 10^15 Btu = 1.055 EJ
+      mutate(value = value * fraction * CONV_BTU_KJ ) %>%
+      # aggregate all types into the onshore oil
+      rename(region = state) %>%
+      mutate(reserve.subresource = case_when(
+        grepl("unconventional", resource) ~ "onshore unconventional oil",
+        T ~ "onshore conventional oil"
+      )) %>%
+      mutate(resource = "crude oil") %>%
+      group_by(region, resource, reserve.subresource, type) %>%
+      summarise(value = sum(value)) %>%
+      ungroup() -> L111.oil_supply_state_T_EJ_onshore
+
+    # The supply is given as total cumulative production at a given probability,
+    # here we need the grades to be the "additional supply" available in that grade.
+    L111.oil_supply_state_T_EJ_onshore %>%
+      spread(type, value) %>%
+      mutate(grade.1 = F95, grade.2 = F50 - F95, grade.3 = F05 - F50) %>%
+      # here the names ("F95", "F50", "F05") are the same as L111.gas_prob_names
+      select(-one_of(L111.gas_prob_names)) -> L111.oil_supply_state_T_EJ_onshore_wide
+
+    # process offshore oil supply from BOEM
+    L111.oil_supply_state_T_EJ_offshore_wide <- BOEM_oil_supply_EJ %>%
+      # According to BOEM, there is no active offshore lease in Atlantic area since 1984
+      # so we don't assume these neighboring states will have offshore oil supply
+      # Source: https://www.boem.gov/oil-gas-energy/oil-and-gas-atlantic (last accessed Jan 2023)
+      filter(region != "Atlantic OCS") %>%
+      mutate(region = case_when(
+        region == "Alaska OCS" ~ "AK",
+        region == "Pacific OCS" ~ "CA",
+        region == "Gulf of Mexico OCS" ~ "GOM"
+      )) %>%
+      gather(grade, value, -region) %>%
+      # use the historical production share of GOM states as the proxy for supply
+      # use left_join since here just map GOM states
+      left_join(offshore_states_oil_GOM_shares %>%
+                  group_by(region, state) %>%
+                  summarise(share = mean(share)) %>%
+                  ungroup, by = "region") %>%
+      mutate(state = if_else(is.na(state), region, state),
+             share = if_else(is.na(share), 1.0, share)) %>%
+      mutate(value = value * share) %>%
+      mutate(resource = "crude oil",
+             reserve.subresource = "offshore oil") %>%
+      select(region = state, resource, reserve.subresource, grade, value) %>%
+      spread(grade, value)
+
+    # combine with onshore and offshore gas supply
+    L111.oil_supply_state_T_EJ_onshore_wide %>%
+      bind_rows(L111.oil_supply_state_T_EJ_offshore_wide) -> L111.oil_supply_state_T_EJ_wide
+
+    # harmonize with the national supply
+    # 1b) create state shares from USGS data
+    L111.oil_supply_state_T_EJ_wide %>%
+      mutate(total = grade.1 + grade.2 + grade.3) %>%
+      group_by(region) %>%
+      summarise(total = sum(total)) %>%
+      mutate(region_sum = sum(total)) %>%
+      mutate(share = total / region_sum) %>%
+      select(-total, -region_sum) -> L111.additional_oil_supply_downscale
+
+    # 2b) sum all oil resources to national total (USGS and BOEM data).
+    L111.oil_supply_state_T_EJ_wide %>%
+      mutate(GCAM_region_ID = gcamusa.USA_REGION_NUMBER) %>%
+      mutate(subresource = ifelse(grepl("onshore conventional oil", reserve.subresource), "crude oil", "unconventional oil")) %>%
+      group_by(GCAM_region_ID, subresource) %>%
+      summarise(USGS_total = sum(grade.1, grade.2, grade.3)) %>%
+      ungroup() -> L111.oil_supply_USA_USGS_BOEM_T_EJ
+
+    # 3b) Subtract from energy data system natural gas resource curve (L111.RsrcCurves_EJ_R_Ffos)
+    # to get remaining natural gas resources.
+    L111.RsrcCurves_EJ_R_Ffos %>%
+      filter(GCAM_region_ID == gcamusa.USA_REGION_NUMBER) %>%
+      filter(resource == "crude oil") %>%
+      mutate(grade = as.numeric(gsub("grade", "", grade))) %>%
+      mutate(cum_avail = cumsum(available)) %>%
+      left_join_error_no_match(L111.oil_supply_USA_USGS_BOEM_T_EJ, by = c("GCAM_region_ID", "subresource")) %>%
+      mutate(cum_avail_remain = cum_avail - USGS_total) %>%
+      filter(cum_avail_remain >= 0) %>%
+      # reset the starting point of the lowest grade as the cumulaitve remaining of "additional oil"
+      mutate(available = if_else(grade == min(grade), cum_avail_remain, available)) %>%
+      select(-cum_avail, -USGS_total, -cum_avail_remain) %>%
+      mutate(grade = paste("grade", grade, sep = ' ')) ->
+      L111.RsrcCurves_EJ_R_oil_additional
+
+    # Apply state shares to remaining natural gas resources
+    additional_oil_supply_states <- distinct(L111.additional_oil_supply_downscale %>% select(region))
+
+    L111.RsrcCurves_EJ_R_oil_additional %>%
+      repeat_add_columns(additional_oil_supply_states) %>%
+      left_join_error_no_match(L111.additional_oil_supply_downscale, by = c("region")) %>%
+      mutate(available = available * share) %>%
+      mutate(resource = "crude oil",
+             # assuming additional supply are onshore oil
+             reserve.subresource = case_when(
+               subresource == "crude oil" ~ "onshore conventional oil",
+               subresource == "unconventional oil" ~ "onshore unconventional oil")) %>%
+      select(region, resource, reserve.subresource, grade, extractioncost, available) -> L111.additional_oil_supply_state_EJ
+
+
+    # Part 3a: gas supply cost (extraction cost by grade)
+    # ------------------------------------------------------------------------------------------------------------------------------
+
+    # define a function to clean up grade names: grade.hist, grade.1, grade.2...
+    clean_grade <- function(df){
+      df_grade <- df %>%
+        group_by(region, reserve.subresource) %>%
+        mutate(grade.order = row_number() -1 ) %>%
+        ungroup() %>%
+        mutate(grade = if_else(grade.order == 0, "grade.hist", paste0("grade.", grade.order))) %>%
+        select(-grade.order)
+      return(df_grade)
+    }
+
 
     # resource curve
     # First need to specify resource costs
     # TODO: cost simple approximation methods are largely consistent with RIAM, needs a little more description
 
-    # 1) Start with onshore cost estimates
+    # 1a) Start with onshore cost estimates
     ETSAP_gas_cost_range %>%
       mutate(reserve.subresource = case_when(
         grepl("conventional", type) ~ "onshore conventional gas",
@@ -391,15 +699,20 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       rename(cost = extractioncost) %>%
       select(region, reserve.subresource, grade, cost) -> L111.GradeCost.onshore.additional
 
-    # since L111.GradeCost.onshore.additional started in grade 4, so logically their extraction.cost should be
-    # higher than the extraction cost of grade 3
-    # for text, just shift the cost curve upward by the magnitute of grade.3's cost
+    # shift the cost curve of the additional part higher than the highest cost of ETSAP range
+    cost.grade.highest.gas <- L111.GradeCost.onshore.additional %>%
+      group_by(reserve.subresource) %>%
+      filter(cost == max(cost)) %>%
+      ungroup() %>%
+      select(reserve.subresource, cost.grade.highest = cost) %>%
+      distinct()
+
     L111.GradeCost.onshore.additional_adjusted <- L111.GradeCost.onshore.additional %>%
-      mutate(cost.grade.3 = max(L111.GradeCost.onshore$cost)) %>%
-      mutate(cost = cost + cost.grade.3) %>%
+      left_join_error_no_match(cost.grade.highest.gas, by = c("reserve.subresource")) %>%
+      mutate(cost = cost + cost.grade.highest) %>%
       select(names(L111.GradeCost.onshore.additional))
 
-    # 2) Offshore cost estimates are more detailed however we will just simply these
+    # 2a) Offshore cost estimates are more detailed however we will just simply these
     # separate OCS quantity by state shares, copying the same price
 
     BOEM_gas_cost %>%
@@ -415,8 +728,8 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       # still use the historical production share of GOM states as the proxy for supply
       # use left_join because AK and CA will be NAs
       left_join(GOM_share %>% mutate(region = "GOM"), by = "region") %>%
-      mutate(state = ifelse(is.na(state), region, state),
-             GOM_share = ifelse(is.na(GOM_share), 1.0, GOM_share)) %>%
+      mutate(state = if_else(is.na(state), region, state),
+             GOM_share = if_else(is.na(GOM_share), 1.0, GOM_share)) %>%
       mutate(quantity = quantity * GOM_share) %>%
       select(region = state, price, quantity) %>%
       mutate(quantity = quantity * CONV_MMCF_EJ * 1e6,
@@ -428,12 +741,108 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       mutate(reserve.subresource = "offshore gas")
 
     # combine all grade extraction cost information together
-    L111.GradeCost <-
+    L111.GradeCost.gas <-
       bind_rows(L111.GradeCost.onshore,
                 L111.GradeCost.offshore,
                 L111.GradeCost.onshore.additional_adjusted) %>%
-      arrange(region, reserve.subresource, cost)
+      arrange(region, reserve.subresource, cost) %>%
+      clean_grade()
 
+
+    # Part 3b: oil supply cost (extraction cost by grade)
+    # ------------------------------------------------------------------------------------------------------------------------------
+
+    # resource curve
+    # First need to specify resource costs
+    # TODO: cost simple approximation methods are largely consistent with RIAM, needs a little more description
+
+    # 3.1b) Start with onshore cost estimates
+    ETSAP_oil_cost_range %>%
+      mutate(reserve.subresource = case_when(
+        grepl("conventional", type) ~ "onshore conventional oil",
+        T ~ "onshore unconventional oil"
+      )) %>%
+      # take the average of the different unconventional gas types as the cost for unconventional natural gas
+      group_by(reserve.subresource) %>%
+      summarise(low_cost = mean(low_cost),
+                high_cost = mean(high_cost)) %>%
+      ungroup() %>%
+      mutate(grade.hist = low_cost,
+             grade.1 = low_cost + 1 * (high_cost - low_cost) / 3,
+             grade.2 = low_cost + 2 * (high_cost - low_cost) / 3,
+             grade.3 = high_cost) %>%
+      gather(grade, cost, -reserve.subresource) %>%
+      filter(grepl("grade", grade)) %>%
+      mutate(cost = cost * gdp_deflator(1975, 2008)) -> L111.GradeCost.onshore.oil
+
+    # Duplicate costs by state and put on and off shore together
+    L111.oil_supply_state_T_EJ_wide %>%
+      filter(grepl( "onshore", reserve.subresource )) %>%
+      distinct(region) -> onshore_states_oil
+
+    L111.onshore_regions_oil <- unique(onshore_states_oil$region)
+
+    L111.GradeCost.onshore.oil %>%
+      repeat_add_columns(tibble("region" = L111.onshore_regions_oil)) %>%
+      select(region, reserve.subresource, grade, cost) -> L111.GradeCost.onshore.oil
+
+    # adjust additional cost
+    L111.additional_oil_supply_state_EJ %>%
+      rename(cost = extractioncost) %>%
+      select(region, reserve.subresource, grade, cost) -> L111.GradeCost.onshore.additional.oil
+
+    # shift the cost curve of the additional part higher than the highest cost of ETSAP range
+    cost.grade.highest.oil <- L111.GradeCost.onshore.additional.oil %>%
+      group_by(reserve.subresource) %>%
+      filter(cost == max(cost)) %>%
+      ungroup() %>%
+      select(reserve.subresource, cost.grade.highest = cost) %>%
+      distinct()
+
+    L111.GradeCost.onshore.additional_adjusted.oil <- L111.GradeCost.onshore.additional.oil %>%
+      left_join_error_no_match(cost.grade.highest.oil, by = c("reserve.subresource")) %>%
+      mutate(cost = cost + cost.grade.highest) %>%
+      select(names(L111.GradeCost.onshore.additional.oil))
+
+    # 3.2b) Offshore cost estimates are more detailed however we will just simply these
+    # separate OCS quantity by state shares, copying the same price
+
+    BOEM_oil_cost %>%
+      # According to BOEM, there is no active offshore lease in Atlantic area since 1984
+      # so we don't assume these neighboring states will have offshore gas supply
+      # Source: https://www.boem.gov/oil-gas-energy/oil-and-gas-atlantic (last accessed Jan 2023)
+      filter(region != "Atlantic OCS") %>%
+      mutate(region = case_when(
+        region == "Alaska OCS" ~ "AK",
+        region == "Pacific OCS" ~ "CA",
+        region == "Gulf of Mexico OCS" ~ "GOM"
+      )) %>%
+      # use the historical production share of GOM states as the proxy for supply
+      # use left_join since here just map GOM states
+      left_join(offshore_states_oil_GOM_shares %>%
+                  group_by(region, state) %>%
+                  summarise(share = mean(share)) %>%
+                  ungroup, by = "region") %>%
+      mutate(state = if_else(is.na(state), region, state),
+             share = if_else(is.na(share), 1.0, share)) %>%
+      mutate(quantity = quantity * share) %>%
+      select(region = state, price, quantity) %>%
+      # convert billion barrels of oil into EJ, $2005 into $1975
+      mutate(quantity = quantity * CONV_MBBL_EJ * 1e3,
+             price = (price * gdp_deflator(1975, 2005)) / (CONV_MMCF_EJ * 1e6) ) -> L111.GradeCost.offshore.detailed.oil
+
+    # NOTE:  compute_offshore_costs FUNCTION MUST BE RE-WRITTEN BEFORE THIS CAN BE RE-WRITTEN IN DPLYR
+    L111.GradeCost.offshore.oil <- compute_offshore_costs( L111.oil_supply_state_T_EJ_offshore_wide,
+                                                           L111.GradeCost.offshore.detailed.oil ) %>%
+      mutate(reserve.subresource = "offshore oil")
+
+    # combine all grade extraction cost information together
+    L111.GradeCost.oil <-
+      bind_rows(L111.GradeCost.onshore.oil,
+                L111.GradeCost.offshore.oil,
+                L111.GradeCost.onshore.additional_adjusted.oil) %>%
+      arrange(region, reserve.subresource, cost) %>%
+      clean_grade()
 
     # Part 4: combine availability and extraction cost to construct the supply curve
     # ------------------------------------------------------------------------------------------------------------------------------
@@ -486,6 +895,7 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       ret
     }
 
+    # 4a) gas
     L111.gas_production_states_EJ %>%
       filter(year %in% MODEL_BASE_YEARS) %>%
       left_join_error_no_match(select(A10.ResSubresourceProdLifetime, resource, lifetime = avg.prod.lifetime),
@@ -502,18 +912,19 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       mutate(grade = "grade.hist") %>%
       group_by(region, resource, reserve.subresource, grade) %>%
       summarise(available = sum(value)) %>%
-      ungroup() -> L111.CumulHistProduction
+      ungroup() -> L111.CumulHistProduction.gas
 
     # Merge costs and available
     # Sort by costs while grouping by state and resource to get grades in an appropriate order
     L111.gas_supply_state_T_EJ_wide %>%
-      gather(grade, available, -region, -resource, -reserve.subresource) -> L111.GradeAvail
+      gather(grade, available, -region, -resource, -reserve.subresource) -> L111.GradeAvail.gas
 
     L111.additional_gas_supply_state_EJ %>%
-      select(names(L111.GradeAvail)) -> L111.GradeAvail.additional
+      select(names(L111.GradeAvail.gas)) -> L111.GradeAvail.additional.gas
 
-    L111.ResCurve <- bind_rows(L111.CumulHistProduction, L111.GradeAvail, L111.GradeAvail.additional) %>%
-      left_join_error_no_match(L111.GradeCost, by = c("region", "reserve.subresource", "grade")) %>%
+    L111.ResCurve.gas <- bind_rows(L111.CumulHistProduction.gas, L111.GradeAvail.gas, L111.GradeAvail.additional.gas) %>%
+      clean_grade() %>%
+      left_join_error_no_match(L111.GradeCost.gas, by = c("region", "reserve.subresource", "grade")) %>%
       mutate(available = round(available, 7),
              extractioncost = round(cost, 3)) %>%
       select(region, resource, reserve.subresource, grade, available, extractioncost) %>%
@@ -523,24 +934,77 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       # However, there are also three states with historical productions "MD, SD, and TN" but no resource curve
       filter(region %in% unique(L111.gas_production_states_EJ$region))
 
+    # 4b) oil
+    L111.oil_production_states_EJ %>%
+      filter(year %in% MODEL_BASE_YEARS) %>%
+      # regroup resource type to be consistent with GCAM core model naming in order to match lifetime
+      mutate(resource_type = ifelse(reserve.subresource == "onshore conventional oil", "crude oil", "unconventional oil")) %>%
+      left_join_error_no_match(select(A10.ResSubresourceProdLifetime, resource_type = reserve.subresource, lifetime = avg.prod.lifetime),
+                               by=c("resource_type")) %>%
+      select(-resource_type) %>%
+      left_join_error_no_match(model_year_timesteps, by = c("year")) %>%
+      repeat_add_columns(tibble(year_operate = MODEL_BASE_YEARS)) %>%
+      mutate(final_year = pmin(MODEL_BASE_YEARS[length(MODEL_BASE_YEARS)], (year - timestep + lifetime))) %>%
+      filter(year_operate >= year - timestep + 1) %>%
+      group_by(region, resource, reserve.subresource) %>%
+      mutate(value = lag_prod_helper(year, value, year_operate, final_year)) %>%
+      ungroup() %>%
+      filter(year == year_operate) %>%
+      mutate(value = value * lifetime) %>%
+      mutate(grade = "grade.hist") %>%
+      group_by(region, resource, reserve.subresource, grade) %>%
+      summarise(available = sum(value)) %>%
+      ungroup() -> L111.CumulHistProduction.oil
+
+    # Merge costs and available
+    # Sort by costs while grouping by state and resource to get grades in an appropriate order
+    L111.oil_supply_state_T_EJ_wide %>%
+      gather(grade, available, -region, -resource, -reserve.subresource) -> L111.GradeAvail.oil
+
+    L111.additional_oil_supply_state_EJ %>%
+      select(names(L111.GradeAvail.oil)) -> L111.GradeAvail.additional.oil
+
+    L111.ResCurve.oil <- bind_rows(L111.CumulHistProduction.oil, L111.GradeAvail.oil, L111.GradeAvail.additional.oil) %>%
+      clean_grade() %>%
+      left_join_error_no_match(L111.GradeCost.oil, by = c("region", "reserve.subresource", "grade")) %>%
+      mutate(available = round(available, 7),
+             extractioncost = round(cost, 3)) %>%
+      select(region, resource, reserve.subresource, grade, available, extractioncost) %>%
+      arrange(region, resource, reserve.subresource, extractioncost) %>%
+      # keep resource curve for states with historical productions
+      filter(region %in% unique(L111.oil_production_states_EJ$region))
+
+
+    # Part 5: combine all resources into the same table
+    # ------------------------------------------------------------------------------------------------------------------------------
+
+    L111.ResCurves_EJ_R_Ffos_USA <- bind_rows(L111.ResCurve.gas, L111.ResCurve.oil)
+    L111.Prod_EJ_R_F_Yh_USA <- bind_rows(L111.gas_production_states_EJ, L111.oil_production_states_EJ)
+
+
+
     # ===================================================
     # Produce outputs
 
-    L111.ResCurve %>%
-      add_title("Natural gas supply and extraction cost by state and resource type") %>%
+    L111.ResCurves_EJ_R_Ffos_USA %>%
+      add_title("Natural gas and oil supply and extraction cost by state and resource type") %>%
       add_units("EJ") %>%
       add_comments("Natural gas supply by state and resource type") %>%
       add_precursors("gcam-usa/USGS_gas_supply_Quad",
+                     "gcam-usa/USGS_oil_supply_Quad",
                      "gcam-usa/USGS_basin_state_mapping",
                      "gcam-usa/BOEM_gas_supply_EJ",
+                     "gcam-usa/BOEM_oil_supply_EJ",
                      "gcam-usa/ETSAP_gas_cost_range",
+                     "gcam-usa/ETSAP_oil_cost_range",
                      "gcam-usa/BOEM_gas_cost",
+                     "gcam-usa/BOEM_oil_cost",
                      "energy/A10.ResSubresourceProdLifetime",
                      "L111.RsrcCurves_EJ_R_Ffos") ->
       L111.ResCurves_EJ_R_Ffos_USA
 
-    L111.gas_production_states_EJ %>%
-      add_title("Downscaled to state US natural gas primary production by resource type / year") %>%
+    L111.Prod_EJ_R_F_Yh_USA %>%
+      add_title("Downscaled to state US natural gas and oil primary production by resource type / year") %>%
       add_units("EJ") %>%
       add_comments("Downscaled to state US natural gas primary production by resource type / year") %>%
       add_precursors("gcam-usa/EIA_gas_market_prod_state_MMcf_total",
@@ -549,6 +1013,11 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
                      "gcam-usa/EIA_NG_prod_mapping_total",
                      "gcam-usa/EIA_NG_prod_mapping_coalbed",
                      "gcam-usa/EIA_NG_prod_mapping_shalegas",
+                     "gcam-usa/EIA_oil_market_prod_state_thousBBL_total",
+                     "gcam-usa/EIA_tight_oil_production_mbbl_per_day",
+                     "gcam-usa/EIA_tight_oil_play_state_mapping",
+                     "gcam-usa/EIA_oil_GOM_refineries_input_2022",
+                     "gcam-usa/Alaska_offshore_gas_oil_2021",
                      "L111.Prod_EJ_R_F_Yh") ->
       L111.Prod_EJ_R_F_Yh_USA
 

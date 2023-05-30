@@ -21,11 +21,14 @@
 
 module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
   if(command == driver.DECLARE_INPUTS) {
-    return(c(FILE = "gcam-usa/A23.gas_sector_vertical",
+    return(c(FILE = "gcam-usa/A10.fossil_sector_vertical",
+             FILE = "emissions/A_PrimaryFuelCCoef",
              FILE = "energy/A10.TechChange",
              FILE = "gcam-usa/A10.subsector_interp",
              FILE = "gcam-usa/EIA_gas_market_wellhead_price_states",
              FILE = "gcam-usa/EIA_NG_prod_mapping_wellhead_price",
+             FILE = "gcam-usa/EIA_oil_first_purchase_price_states",
+             FILE = "gcam-usa/EIA_oil_first_purchase_price_states_mapping",
              "L111.ResCurves_EJ_R_Ffos_USA",
              "L111.Prod_EJ_R_F_Yh_USA",
              "L210.RsrcPrice",
@@ -72,11 +75,14 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
       sub.renewable.resource <- subresource <- NULL
 
     # Load required inputs
-    A23.gas_sector_vertical <- get_data(all_data, "gcam-usa/A23.gas_sector_vertical", strip_attributes = TRUE)
+    A10.fossil_sector_vertical <- get_data(all_data, "gcam-usa/A10.fossil_sector_vertical", strip_attributes = TRUE)
+    A_PrimaryFuelCCoef <- get_data(all_data, "emissions/A_PrimaryFuelCCoef", strip_attributes = TRUE)
     A10.TechChange <- get_data(all_data, "energy/A10.TechChange", strip_attributes = TRUE)
     A10.subsector_interp <- get_data(all_data, "gcam-usa/A10.subsector_interp", strip_attributes = TRUE)
     EIA_gas_market_wellhead_price_states <- get_data(all_data, "gcam-usa/EIA_gas_market_wellhead_price_states", strip_attributes = TRUE)
     EIA_NG_prod_mapping_wellhead_price <- get_data(all_data, "gcam-usa/EIA_NG_prod_mapping_wellhead_price", strip_attributes = TRUE)
+    EIA_oil_first_purchase_price_states <- get_data(all_data, "gcam-usa/EIA_oil_first_purchase_price_states", strip_attributes = TRUE)
+    EIA_oil_first_purchase_price_states_mapping <- get_data(all_data, "gcam-usa/EIA_oil_first_purchase_price_states_mapping", strip_attributes = TRUE)
     L111.ResCurves_EJ_R_Ffos_USA <- get_data(all_data, "L111.ResCurves_EJ_R_Ffos_USA", strip_attributes = TRUE)
     L111.Prod_EJ_R_F_Yh_USA <- get_data(all_data, "L111.Prod_EJ_R_F_Yh_USA", strip_attributes = TRUE)
     L210.RsrcPrice <- get_data(all_data, "L210.RsrcPrice", strip_attributes = TRUE)
@@ -94,11 +100,11 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
     # Part 1: construct XML structures for state-level resources
     # -------------------------------------------------------------------------------------------
 
-    # Structure for "natural gas production" supply sector
-    L211.gas_prod_sector_name <- "natural gas production"
+    # Structure for "natural gas production" and "crude oil" supply sector
+    L211.fossil_prod_sector_name <- c("natural gas production", "crude oil production")
 
-    A23.gas_sector_vertical %>%
-      filter(supplysector == L211.gas_prod_sector_name) %>%
+    A10.fossil_sector_vertical %>%
+      filter(supplysector %in% L211.fossil_prod_sector_name) %>%
       mutate(region = "USA",
              output.unit="EJ",
              input.unit="EJ",
@@ -106,7 +112,7 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
              logit.year.fillout=MODEL_BASE_YEARS[1],
              logit.type=NA) %>%
       select(region, supplysector, output.unit, input.unit, price.unit,
-             logit.year.fillout, logit.exponent, logit.type) -> L211.Supplysector_NGprod
+             logit.year.fillout, logit.exponent, logit.type) -> L211.Supplysector_FFprod
 
 
     # L211.Rsrc_F_USA: fossil resource parameters
@@ -124,21 +130,38 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
     # for missing years, use historical average
 
     # 1) clean up region mapping
+    # natural gas
     EIA_gas_market_wellhead_price_states_raw <- EIA_gas_market_wellhead_price_states %>%
       gather(category, value, -Date) %>%
       rename(year = Date) %>%
       filter(year %in% HISTORICAL_YEARS) %>%
       left_join_error_no_match(EIA_NG_prod_mapping_wellhead_price, by = "category") %>%
       filter(state != "other") %>%
-      select(-category)
+      select(-category) %>%
+      mutate(resource = "natural gas")
+
+    # crude oil
+    EIA_oil_first_purchase_price_states_raw <- EIA_oil_first_purchase_price_states %>%
+      gather(category, value, -Date) %>%
+      rename(year = Date) %>%
+      filter(year %in% HISTORICAL_YEARS) %>%
+      left_join_error_no_match(EIA_oil_first_purchase_price_states_mapping, by = "category") %>%
+      filter(state != "other") %>%
+      select(-category) %>%
+      mutate(resource = "crude oil")
+
+    # combine
+    EIA_fossil_production_price_raw <- bind_rows(EIA_gas_market_wellhead_price_states_raw,
+                                                 EIA_oil_first_purchase_price_states_raw)
+
 
     # 2) develop state-to-US scalars
-    EIA_gas_market_wellhead_price_states_scalars <- EIA_gas_market_wellhead_price_states_raw %>%
+    EIA_fossil_production_price_states_scalars <- EIA_fossil_production_price_raw %>%
       filter(state != "USA") %>%
-      left_join(EIA_gas_market_wellhead_price_states_raw %>%
+      left_join(EIA_fossil_production_price_raw %>%
                   filter(state == "USA") %>%
-                  select(year, value_usa = value),
-                by = "year") %>%
+                  select(resource, year, value_usa = value),
+                by = c("year", "resource")) %>%
       mutate(scalars = value / value_usa) %>%
       group_by(state) %>%
       # becuase different states have different years available, the late available year is no later
@@ -148,7 +171,7 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
       # for states no value available for any historcal year, just use the USA value (scalar = 1)
       # this is only for the case of Navada
       mutate(scalar_average = ifelse(is.na(scalar_average), 1, scalar_average)) %>%
-      select(state, scalar = scalar_average) %>%
+      select(state, resource, scalar = scalar_average) %>%
       distinct()
 
     # scale state-level calibrated prices based on historical wellhead prices relative to USA
@@ -157,10 +180,10 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
       select(region, resource, year) %>%
       distinct() %>%
       left_join_error_no_match(L210.RsrcPrice %>%
-                                 filter(region == "USA" & resource == "natural gas") %>%
-                                 select(year, price), by = "year") %>%
+                                 filter(region == "USA" & resource %in% c("natural gas", "crude oil")) %>%
+                                 select(year, resource, price), by = c("resource", "year")) %>%
       # use left_join because Idaho has historical productions but no wellhead price info available
-      left_join(EIA_gas_market_wellhead_price_states_scalars, by = c("region" = "state")) %>%
+      left_join(EIA_fossil_production_price_states_scalars, by = c("region" = "state", "resource")) %>%
       # replace NA scalars as 1 (using USA value)
       replace_na(list("scalar" = 1)) %>%
       mutate(price = price * scalar ) %>%
@@ -194,17 +217,33 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
     L211.RsrcCalProd_USA %>%
       select(region, resource, reserve.subresource) %>%
       distinct() %>%
+      # create a mapping type to match core GCAM's fossil fuel category
+      mutate(type = case_when(
+        resource == "natural gas" ~ "natural gas",
+        reserve.subresource == "onshore conventional oil" ~ "crude oil",
+        reserve.subresource %in% c("onshore unconventional oil", "offshore oil") ~ "unconventional oil")
+      ) %>%
       left_join_error_no_match(L210.ResSubresourceProdLifetime %>%
-                                 filter(region == "USA" & resource == "natural gas") %>%
-                                 select(resource, avg.prod.lifetime), by = "resource") -> L211.ResSubresourceProdLifetime_USA
+                                 filter(region == "USA" & resource %in% c("natural gas", "crude oil")) %>%
+                                 select(reserve.subresource, avg.prod.lifetime),
+                               by = c("type" = "reserve.subresource")) %>%
+      select(-type) -> L211.ResSubresourceProdLifetime_USA
 
     # 2) reserve.subresource price adder in 2100 - follow national assumption
     L211.RsrcCalProd_USA %>%
       select(region, resource, reserve.subresource) %>%
       distinct() %>%
+      # create a mapping type to match core GCAM's fossil fuel category
+      mutate(type = case_when(
+        resource == "natural gas" ~ "natural gas",
+        reserve.subresource == "onshore conventional oil" ~ "crude oil",
+        reserve.subresource %in% c("onshore unconventional oil", "offshore oil") ~ "unconventional oil")
+      ) %>%
       left_join_error_no_match(L210.SubresourcePriceAdder %>%
-                                 filter(region == "USA" & resource == "natural gas") %>%
-                                 select(resource, year, price.adder), by = "resource") -> L211.SubresourcePriceAdder_USA
+                                 filter(region == "USA" & resource %in% c("natural gas", "crude oil")) %>%
+                                 select(subresource, year, price.adder),
+                               by = c("type" = "subresource")) %>%
+      select(-type) -> L211.SubresourcePriceAdder_USA
 
     # 3) historical calculated reserve - follow the same method in L210.resources.R
 
@@ -280,49 +319,81 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
     L211.RsrcCalProd_USA %>%
       select(region, resource, reserve.subresource) %>%
       distinct() %>%
-      # use left_join becuase number of rows will be changes (copy to all years)
+      # create a mapping type to match core GCAM's fossil fuel category
+      mutate(type = case_when(
+        resource == "natural gas" ~ "natural gas",
+        reserve.subresource == "onshore conventional oil" ~ "crude oil",
+        reserve.subresource %in% c("onshore unconventional oil", "offshore oil") ~ "unconventional oil")
+      ) %>%
+      # use left_join because number of rows will be changes (copy to all years)
       left_join(L210.ResReserveTechLifetime %>%
-                  filter(region == "USA" & resource == "natural gas") %>%
-                  select(resource, resource.reserve.technology, year, lifetime),
-                by = "resource") -> L211.ResReserveTechLifetime_USA
+                  filter(region == "USA" & resource %in% c("natural gas", "crude oil")) %>%
+                  select(reserve.subresource, year, lifetime),
+                by = c("type" = "reserve.subresource")) %>%
+      mutate(resource.reserve.technology = reserve.subresource) %>%
+      select(names(L210.ResReserveTechLifetime)) -> L211.ResReserveTechLifetime_USA
 
     # 5) reserve.resource.technology decline.phase.percent - follow national assumption
     L211.RsrcCalProd_USA %>%
       select(region, resource, reserve.subresource) %>%
       distinct() %>%
+      # create a mapping type to match core GCAM's fossil fuel category
+      mutate(type = case_when(
+        resource == "natural gas" ~ "natural gas",
+        reserve.subresource == "onshore conventional oil" ~ "crude oil",
+        reserve.subresource %in% c("onshore unconventional oil", "offshore oil") ~ "unconventional oil")
+      ) %>%
       left_join(L210.ResReserveTechDeclinePhase %>%
-                  filter(region == "USA" & resource == "natural gas") %>%
-                  select(resource, resource.reserve.technology, year, decline.phase.percent),
-                by = "resource") -> L211.ResReserveTechDeclinePhase_USA
+                  filter(region == "USA" & resource %in% c("natural gas", "crude oil")) %>%
+                  select(reserve.subresource, year, decline.phase.percent),
+                by = c("type" = "reserve.subresource")) %>%
+      mutate(resource.reserve.technology = reserve.subresource) %>%
+      select(names(L210.ResReserveTechDeclinePhase)) -> L211.ResReserveTechDeclinePhase_USA
 
     # 6) reserve.resource.technology profit.shutdown parameters - follow national assumption
     L211.RsrcCalProd_USA %>%
       select(region, resource, reserve.subresource) %>%
       distinct() %>%
+      # create a mapping type to match core GCAM's fossil fuel category
+      mutate(type = case_when(
+        resource == "natural gas" ~ "natural gas",
+        reserve.subresource == "onshore conventional oil" ~ "crude oil",
+        reserve.subresource %in% c("onshore unconventional oil", "offshore oil") ~ "unconventional oil")
+      ) %>%
       left_join(L210.ResReserveTechProfitShutdown %>%
-                  filter(region == "USA" & resource == "natural gas") %>%
-                  select(resource, resource.reserve.technology, year, median.shutdown.point, profit.shutdown.steepness),
-                by = "resource") -> L211.ResReserveTechProfitShutdown_USA
+                  filter(region == "USA" & resource %in% c("natural gas", "crude oil")) %>%
+                  select(reserve.subresource, year, median.shutdown.point, profit.shutdown.steepness),
+                by = c("type" = "reserve.subresource")) %>%
+      mutate(resource.reserve.technology = reserve.subresource) %>%
+      select(names(L210.ResReserveTechProfitShutdown)) -> L211.ResReserveTechProfitShutdown_USA
 
     # 7) reserve.resource.technology share.weight - follow national assumption
     L211.RsrcCalProd_USA %>%
       select(region, resource, reserve.subresource) %>%
       distinct() %>%
+      # create a mapping type to match core GCAM's fossil fuel category
+      mutate(type = case_when(
+        resource == "natural gas" ~ "natural gas",
+        reserve.subresource == "onshore conventional oil" ~ "crude oil",
+        reserve.subresource %in% c("onshore unconventional oil", "offshore oil") ~ "unconventional oil")
+      ) %>%
       left_join(L210.ResTechShrwt %>%
-                  filter(region == "USA" & resource == "natural gas") %>%
-                  select(resource, resource.reserve.technology = technology, year, share.weight),
-                by = c("resource")) -> L211.ResReserveTechShrwt_fossil_USA
+                  filter(region == "USA" & resource %in% c("natural gas", "crude oil")) %>%
+                  select(subresource, year, share.weight),
+                by = c("type" = "subresource")) %>%
+      mutate(resource.reserve.technology = reserve.subresource) %>%
+      select(region, resource, reserve.subresource, resource.reserve.technology, year, share.weight) -> L211.ResReserveTechShrwt_fossil_USA
 
     # Part 3: Create state regional natural gas sectors which aggregate resource types.
     # -------------------------------------------------------------------------------------------
 
     # L211.Sector: Regional natural gas sector to aggregate gas types.
     L111.Prod_EJ_R_F_Yh_USA %>%
-      distinct(region) -> L211.gas_regions
+      distinct(region, resource) -> L211.Rsrc_F_regions
 
     # Note: these logit assumptions matter
-    L211.gas_regions %>%
-      mutate(supplysector = L211.gas_prod_sector_name,
+    L211.Rsrc_F_regions %>%
+      mutate(supplysector = paste0(resource, " production"),
              output.unit = "EJ",
              input.unit = "EJ",
              price.unit = "1975$/GJ",
@@ -330,26 +401,25 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
              logit.exponent = -3,
              logit.type = NA) -> L211.Sector
 
-    L211.Supplysector_NGprod %>% bind_rows(L211.Sector) %>%
+    L211.Supplysector_FFprod %>% bind_rows(L211.Sector) %>%
       select(LEVEL2_DATA_NAMES[["Supplysector"]]) %>%
       mutate(logit.type = NA) -> L211.Sector_prod_USA
 
     # Add USA & state natural gas production sectors to CO2 Coefs, format for output
     # TODO: will add this to Ccoef files later
     L211.Sector_prod_USA %>%
-      select(region) %>%
+      select(region, supplysector) %>%
       distinct() %>%
-      mutate(resource = L211.gas_prod_sector_name,
-             co2.coef = 14.2) %>%
-      rename(PrimaryFuelCO2Coef.name = resource, PrimaryFuelCO2Coef = co2.coef )-> L211.PrimaryCO2Coef_USA
+      mutate(PrimaryFuelCO2Coef.name = gsub(" production", "", supplysector)) %>%
+      left_join_error_no_match(A_PrimaryFuelCCoef, by = "PrimaryFuelCO2Coef.name") %>%
+      select(region, PrimaryFuelCO2Coef.name, PrimaryFuelCO2Coef) -> L211.PrimaryCO2Coef_USA
 
     # L211.Subsector_prod_USA: Regional natural gas subsector to aggregate gas types
     # NOTE: these logit assumptions do not matter as there is no competition at this nest
     L111.Prod_EJ_R_F_Yh_USA %>%
-      select(region, resource) %>%
-      distinct(region, resource) %>%
-      rename(subsector = resource) %>%
-      mutate(supplysector = L211.gas_prod_sector_name,
+      select(region, subsector = resource) %>%
+      distinct(region, subsector) %>%
+      mutate(supplysector = paste0(subsector, " production"),
              logit.year.fillout = MODEL_BASE_YEARS[1],
              logit.exponent=-6,
              logit.type=NA) %>%
@@ -396,7 +466,7 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
       group_by(region, resource, year) %>%
       summarise(value = sum(value)) %>%
       ungroup() %>%
-      mutate(supplysector = L211.gas_prod_sector_name,
+      mutate(supplysector = paste0(resource, " production"),
              subsector = resource,
              stub.technology = resource,
              minicam.energy.input = resource,
@@ -408,25 +478,23 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
 
     # Part 4: Add these resources to the traded natural gas sector
     # -------------------------------------------------------------------------------------------
-    L211.regional_ng_sector <- "natural gas production"
-
     L111.Prod_EJ_R_F_Yh_USA %>%
-      group_by(region, year) %>%
+      group_by(region, resource, year) %>%
       summarise(value = sum(value)) %>%
-      ungroup() -> L211.gas_prod_state_Yh_EJ
+      ungroup() -> L211.fossil_prod_state_Yh_EJ
 
-    L211.gas_prod_state_Yh_EJ %>%
+    L211.fossil_prod_state_Yh_EJ %>%
       rename(state = region) %>%
-      distinct(state) %>%
+      distinct(state, resource) %>%
       mutate(region = "USA",
-             supplysector = L211.regional_ng_sector,
-             subsector = ifelse(state == "AK", paste(state, L211.gas_prod_sector_name),
-                                paste("Lower48", L211.gas_prod_sector_name)),
+             supplysector = paste0(resource, " production"),
+             subsector = ifelse(state == "AK", paste(state, supplysector),
+                                paste("Lower48", supplysector)),
              apply.to = "share-weight",
              from.year = as.character(MODEL_FINAL_BASE_YEAR),
              to.year = as.character(MODEL_YEARS[ length( MODEL_YEARS ) ]),
              interpolation.function="fixed" ) %>%
-      select(-state) %>%
+      select(-state, -resource) %>%
       distinct() -> L211.TNGSubsInterp_USA
 
     # "L211.TNGSubsInterp: The interpolation rule for the regions in the traded natural gas sector."
@@ -443,15 +511,15 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
 
 
     # "L211.TNGTech: create the tech to simply pass through state production"
-    L211.gas_prod_state_Yh_EJ %>%
+    L211.fossil_prod_state_Yh_EJ %>%
       filter(year %in% MODEL_BASE_YEARS) %>%
       mutate(market.name = region) %>%
-      mutate(minicam.energy.input = L211.gas_prod_sector_name,
+      mutate(minicam.energy.input = paste0(resource, " production"),
              region = "USA",
-             supplysector = L211.regional_ng_sector,
-             subsector = ifelse(market.name == "AK", paste(market.name, L211.gas_prod_sector_name),
-                                paste("Lower48", L211.gas_prod_sector_name)),
-             technology = paste(market.name, L211.gas_prod_sector_name)) -> L211.TNGTech
+             supplysector = minicam.energy.input,
+             subsector = ifelse(market.name == "AK", paste(market.name, supplysector),
+                                paste("Lower48", supplysector)),
+             technology = paste(market.name, supplysector)) -> L211.TNGTech
 
     L211.TNGTech %>%
       mutate(calOutputValue = round(value, 7),
@@ -468,10 +536,11 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
     # Produce outputs
 
     L211.PrimaryCO2Coef_USA %>%
-      add_title("USA and state natural gas production carbon Coefs") %>%
+      add_title("USA and state fossil resource production carbon Coefs") %>%
       add_units("kg C per GJ") %>%
-      add_comments("USA and state natural gas production carbon Coefs") %>%
-      add_precursors("L111.Prod_EJ_R_F_Yh_USA") ->
+      add_comments("USA and state fossil resource production carbon Coefs") %>%
+      add_precursors("emissions/A_PrimaryFuelCCoef",
+                     "L111.Prod_EJ_R_F_Yh_USA") ->
       L211.PrimaryCO2Coef_USA
 
     L211.Rsrc_F_USA %>%
@@ -487,7 +556,10 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
       add_comments("scale USA price assumptions to each state based on EIA historical wellhead prices") %>%
       same_precursors_as("L211.PrimaryCO2Coef") %>%
       add_precursors("gcam-usa/EIA_gas_market_wellhead_price_states",
-                     "gcam-usa/EIA_NG_prod_mapping_wellhead_price") ->
+                     "gcam-usa/EIA_NG_prod_mapping_wellhead_price",
+                     "gcam-usa/EIA_oil_first_purchase_price_states",
+                     "gcam-usa/EIA_oil_first_purchase_price_states_mapping",
+                     "L210.RsrcPrice") ->
       L211.RsrcPrice_F_USA
 
     L211.RsrcCalProd_USA %>%
@@ -571,7 +643,7 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
       add_title("supplysector logit table") %>%
       add_units("unitless") %>%
       add_comments("supplysector logit table") %>%
-      add_precursors("gcam-usa/A23.gas_sector_vertical",
+      add_precursors("gcam-usa/A10.fossil_sector_vertical",
                      "L111.Prod_EJ_R_F_Yh_USA") ->
       L211.Sector_prod_USA
 

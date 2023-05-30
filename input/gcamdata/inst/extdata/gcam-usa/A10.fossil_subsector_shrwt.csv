@@ -1,4 +1,4 @@
-# File: A23.gas_subsector_shrwt.csv
+# File: A10.fossil_subsector_shrwt.csv
 # Title: subsector shareweights at points of inflexion
 # Units: unitless
 # Source: None (GCAM assumptions)
@@ -8,3 +8,6 @@ region,supplysector,subsector,year,share.weight
 USA,regional natural gas,imported natural gas,2015,0.1
 USA,regional natural gas,imported natural gas,2050,0
 USA,regional natural gas,imported natural gas,end-year,0
+USA,regional oil,imported oil,2015,0.1
+USA,regional oil,imported oil,2050,0
+USA,regional oil,imported oil,end-year,0

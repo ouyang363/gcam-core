@@ -35,17 +35,17 @@ module_gcamusa_batch_resources_fossil_USA_xml <- function(command, ...) {
              "L211.TNGSubsectorLogit",
              "L211.TNGTechProduction_USA",
              "L211.TNGTechCoef_USA",
-             "L2262.DeleteRsrc_NG_USA",
-             "L2262.Delete_regNG_supplysector",
-             "L2262.Supplysector_regNG_USA",
-             "L2262.Subsector_regNG_USA",
-             "L2262.PrimaryConsKeyword_regNG_USA",
-             "L2262.StubTechProd_regNG_USA",
-             "L2262.TechCoef_regNG_USA",
-             "L2262.TechShrwt_regNG_USA",
-             "L2262.SubsectorShrwt_regNG_USA",
-             "L2262.SubsectorShrwtInterp_regNG_USA",
-             "L2262.SubsectorShrwtInterpTo_regNG_USA"))
+             "L2262.DeleteRsrc_fos_USA",
+             "L2262.Delete_reg_fos_supplysector",
+             "L2262.Supplysector_reg_fos_USA",
+             "L2262.Subsector_reg_fos_USA",
+             "L2262.PrimaryConsKeyword_reg_fos_USA",
+             "L2262.StubTechProd_reg_fos_USA",
+             "L2262.TechCoef_reg_fos_USA",
+             "L2262.TechShrwt_reg_fos_USA",
+             "L2262.SubsectorShrwt_reg_fos_USA",
+             "L2262.SubsectorShrwtInterp_reg_fos_USA",
+             "L2262.SubsectorShrwtInterpTo_reg_fos_USA"))
   } else if(command == driver.DECLARE_OUTPUTS) {
     return(c(XML = "resources_fossil_USA.xml"))
   } else if(command == driver.MAKE) {
@@ -79,17 +79,17 @@ module_gcamusa_batch_resources_fossil_USA_xml <- function(command, ...) {
     L211.TNGTechProduction_USA <- get_data(all_data, "L211.TNGTechProduction_USA")
     L211.TNGTechCoef_USA <- get_data(all_data, "L211.TNGTechCoef_USA")
 
-    L2262.DeleteRsrc_NG_USA <- get_data(all_data, "L2262.DeleteRsrc_NG_USA")
-    L2262.Delete_regNG_supplysector <- get_data(all_data, "L2262.Delete_regNG_supplysector")
-    L2262.Supplysector_regNG_USA <- get_data(all_data, "L2262.Supplysector_regNG_USA")
-    L2262.Subsector_regNG_USA <- get_data(all_data, "L2262.Subsector_regNG_USA")
-    L2262.PrimaryConsKeyword_regNG_USA <- get_data(all_data, "L2262.PrimaryConsKeyword_regNG_USA")
-    L2262.StubTechProd_regNG_USA <- get_data(all_data, "L2262.StubTechProd_regNG_USA")
-    L2262.TechCoef_regNG_USA <- get_data(all_data, "L2262.TechCoef_regNG_USA")
-    L2262.TechShrwt_regNG_USA <- get_data(all_data, "L2262.TechShrwt_regNG_USA")
-    L2262.SubsectorShrwt_regNG_USA <- get_data(all_data, "L2262.SubsectorShrwt_regNG_USA")
-    L2262.SubsectorShrwtInterp_regNG_USA <- get_data(all_data, "L2262.SubsectorShrwtInterp_regNG_USA")
-    L2262.SubsectorShrwtInterpTo_regNG_USA <- get_data(all_data, "L2262.SubsectorShrwtInterpTo_regNG_USA")
+    L2262.DeleteRsrc_fos_USA <- get_data(all_data, "L2262.DeleteRsrc_fos_USA")
+    L2262.Delete_reg_fos_supplysector <- get_data(all_data, "L2262.Delete_reg_fos_supplysector")
+    L2262.Supplysector_reg_fos_USA <- get_data(all_data, "L2262.Supplysector_reg_fos_USA")
+    L2262.Subsector_reg_fos_USA <- get_data(all_data, "L2262.Subsector_reg_fos_USA")
+    L2262.PrimaryConsKeyword_reg_fos_USA <- get_data(all_data, "L2262.PrimaryConsKeyword_reg_fos_USA")
+    L2262.StubTechProd_reg_fos_USA <- get_data(all_data, "L2262.StubTechProd_reg_fos_USA")
+    L2262.TechCoef_reg_fos_USA <- get_data(all_data, "L2262.TechCoef_reg_fos_USA")
+    L2262.TechShrwt_reg_fos_USA <- get_data(all_data, "L2262.TechShrwt_reg_fos_USA")
+    L2262.SubsectorShrwt_reg_fos_USA <- get_data(all_data, "L2262.SubsectorShrwt_reg_fos_USA")
+    L2262.SubsectorShrwtInterp_reg_fos_USA <- get_data(all_data, "L2262.SubsectorShrwtInterp_reg_fos_USA")
+    L2262.SubsectorShrwtInterpTo_reg_fos_USA <- get_data(all_data, "L2262.SubsectorShrwtInterpTo_reg_fos_USA")
 
 
     # ===================================================
@@ -113,8 +113,8 @@ module_gcamusa_batch_resources_fossil_USA_xml <- function(command, ...) {
 
     # Produce outputs
     create_xml("resources_fossil_USA.xml") %>%
-      add_xml_data(L2262.DeleteRsrc_NG_USA, "DeleteRsrc") %>%
-      add_xml_data(L2262.Delete_regNG_supplysector, "DeleteSupplysector") %>%
+      add_xml_data(L2262.DeleteRsrc_fos_USA, "DeleteRsrc") %>%
+      add_xml_data(L2262.Delete_reg_fos_supplysector, "DeleteSupplysector") %>%
       # resource curve
       add_xml_data(L211.PrimaryCO2Coef_USA, "CarbonCoef") %>%
       add_xml_data(L211.Rsrc_F_USA, "Rsrc") %>%
@@ -145,15 +145,15 @@ module_gcamusa_batch_resources_fossil_USA_xml <- function(command, ...) {
       add_xml_data(L211.TNGTechProduction_USA, "Production") %>%
       add_xml_data(L211.TNGTechCoef_USA, "TechCoef") %>%
       # domestic versus import NG
-      add_logit_tables_xml(L2262.Supplysector_regNG_USA, "Supplysector") %>%
-      add_logit_tables_xml(L2262.Subsector_regNG_USA, "SubsectorLogit") %>%
-      add_xml_data(L2262.PrimaryConsKeyword_regNG_USA, "PrimaryConsKeywordff") %>%
-      add_xml_data(L2262.StubTechProd_regNG_USA, "StubTechProd") %>%
-      add_xml_data(L2262.TechCoef_regNG_USA, "TechCoef") %>%
-      add_xml_data(L2262.TechShrwt_regNG_USA, "TechShrwt") %>%
-      add_xml_data(L2262.SubsectorShrwt_regNG_USA, "SubsectorShrwt") %>%
-      add_xml_data(L2262.SubsectorShrwtInterp_regNG_USA, "SubsectorInterp") %>%
-      add_xml_data(L2262.SubsectorShrwtInterpTo_regNG_USA, "SubsectorInterpTo") %>%
+      add_logit_tables_xml(L2262.Supplysector_reg_fos_USA, "Supplysector") %>%
+      add_logit_tables_xml(L2262.Subsector_reg_fos_USA, "SubsectorLogit") %>%
+      add_xml_data(L2262.PrimaryConsKeyword_reg_fos_USA, "PrimaryConsKeywordff") %>%
+      add_xml_data(L2262.StubTechProd_reg_fos_USA, "StubTechProd") %>%
+      add_xml_data(L2262.TechCoef_reg_fos_USA, "TechCoef") %>%
+      add_xml_data(L2262.TechShrwt_reg_fos_USA, "TechShrwt") %>%
+      add_xml_data(L2262.SubsectorShrwt_reg_fos_USA, "SubsectorShrwt") %>%
+      add_xml_data(L2262.SubsectorShrwtInterp_reg_fos_USA, "SubsectorInterp") %>%
+      add_xml_data(L2262.SubsectorShrwtInterpTo_reg_fos_USA, "SubsectorInterpTo") %>%
       add_precursors("L211.PrimaryCO2Coef_USA",
                      "L211.Rsrc_F_USA",
                      "L211.RsrcPrice_F_USA",
@@ -177,17 +177,17 @@ module_gcamusa_batch_resources_fossil_USA_xml <- function(command, ...) {
                      "L211.TNGSubsectorLogit",
                      "L211.TNGTechProduction_USA",
                      "L211.TNGTechCoef_USA",
-                     "L2262.DeleteRsrc_NG_USA",
-                     "L2262.Delete_regNG_supplysector",
-                     "L2262.Supplysector_regNG_USA",
-                     "L2262.Subsector_regNG_USA",
-                     "L2262.PrimaryConsKeyword_regNG_USA",
-                     "L2262.StubTechProd_regNG_USA",
-                     "L2262.TechCoef_regNG_USA",
-                     "L2262.TechShrwt_regNG_USA",
-                     "L2262.SubsectorShrwt_regNG_USA",
-                     "L2262.SubsectorShrwtInterp_regNG_USA",
-                     "L2262.SubsectorShrwtInterpTo_regNG_USA") ->
+                     "L2262.DeleteRsrc_fos_USA",
+                     "L2262.Delete_reg_fos_supplysector",
+                     "L2262.Supplysector_reg_fos_USA",
+                     "L2262.Subsector_reg_fos_USA",
+                     "L2262.PrimaryConsKeyword_reg_fos_USA",
+                     "L2262.StubTechProd_reg_fos_USA",
+                     "L2262.TechCoef_reg_fos_USA",
+                     "L2262.TechShrwt_reg_fos_USA",
+                     "L2262.SubsectorShrwt_reg_fos_USA",
+                     "L2262.SubsectorShrwtInterp_reg_fos_USA",
+                     "L2262.SubsectorShrwtInterpTo_reg_fos_USA") ->
       resources_fossil_USA.xml
 
     return_data(resources_fossil_USA.xml)
