@@ -193,11 +193,14 @@ module_energy_batch_en_supply_xml <- function(command, ...) {
     # change US traded [fossil resource] into [fossil resource] production
     # YO test Jan 10
     # YO test May 29
+    # YO test Jun 11
     L239.TechCoef_tra_US_reg <- L239.TechCoef_tra %>%
       mutate(minicam.energy.input = ifelse(technology == "USA traded natural gas",
                                            "natural gas production", minicam.energy.input)) %>%
       mutate(minicam.energy.input = ifelse(technology == "USA traded oil",
-                                           "crude oil production", minicam.energy.input))
+                                           "crude oil production", minicam.energy.input)) %>%
+      mutate(minicam.energy.input = ifelse(technology == "USA traded coal",
+                                           "coal production", minicam.energy.input))
 
 
     create_xml("en_supply_US_reg.xml") %>%

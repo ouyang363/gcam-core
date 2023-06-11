@@ -7,3 +7,4 @@
 region,supplysector,subsector,apply.to,from.year,to.year,interpolation.function
 USA,regional natural gas,domestic natural gas,share-weight,final-calibration-year,end-year,fixed
 USA,regional oil,domestic oil,share-weight,final-calibration-year,end-year,fixed
+USA,regional coal,domestic coal,share-weight,final-calibration-year,end-year,fixed

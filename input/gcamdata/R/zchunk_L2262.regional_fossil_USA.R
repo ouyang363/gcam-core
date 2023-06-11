@@ -80,7 +80,7 @@ module_gcamusa_L2262.regional_fossil_USA <- function(command, ...) {
     # Perform computations
 
     # Delete USA fossil subresource
-    L2262.DeleteRsrc_fos_USA <- tibble(region = "USA", resource = c("natural gas", "crude oil"))
+    L2262.DeleteRsrc_fos_USA <- tibble(region = "USA", resource = c("natural gas", "crude oil", "coal"))
 
     # Delete "regional [fossil resource]" subsector
     A10.fossil_sector_vertical %>%
@@ -123,7 +123,8 @@ module_gcamusa_L2262.regional_fossil_USA <- function(command, ...) {
       # create a temp variable for mapping
       mutate(subsector = case_when(
         resource == "crude oil" ~ "domestic oil",
-        resource == "natural gas" ~ "domestic natural gas"
+        resource == "natural gas" ~ "domestic natural gas",
+        resource == "coal" ~ "domestic coal"
       )) %>%
       left_join_error_no_match(A10.fossil_tech_associations %>% filter(grepl("domestic", subsector)) %>%
                                  mutate(region = "USA"), by = c("region", "subsector")) %>%

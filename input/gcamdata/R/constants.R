@@ -157,7 +157,7 @@ CONV_GJ_KGH2 <- 0.12021 #GJ/kg H2 - LHV
 CONV_MMCF_EJ <- 0.0000010550559 #convert volume of natural gas (million cubic feet) into energy
 CONV_BCF_MMCF <- 1000 #convert billion cubic feet into million cubic feet
 CONV_MBBL_EJ <- 6.119 * 1e-3 # million barrels of oil equivalent to EJ
-
+CONV_TCE_EJ <- 2.9288 * 1e-8 # convert 1 ton of coal equivalent into EJ
 
 # Distance
 CONV_MILE_KM <- 1.60934 # Mile to km

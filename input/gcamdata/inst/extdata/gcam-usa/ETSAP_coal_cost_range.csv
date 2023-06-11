@@ -1,0 +1,9 @@
+# File: ETSAP_coal_cost_range.csv
+# Title: Estimates for oil production costs by grade
+# Units: 2008$/GJ
+# Comments: Data from ETSAP brief; TODO: track down to original source
+# Column types: cnn
+# ----------
+type,low_cost,high_cost
+lignite,0.36,4.7
+hard coal,1.31,2.17

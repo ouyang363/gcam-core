@@ -9,3 +9,5 @@ USA,regional natural gas,imported natural gas,share-weight,2015,2050,0,linear
 USA,regional natural gas,imported natural gas,share-weight,2050,end-year,0,fixed
 USA,regional oil,imported oil,share-weight,2015,2050,0,linear
 USA,regional oil,imported oil,share-weight,2050,end-year,0,fixed
+USA,regional coal,imported coal,share-weight,2015,2050,0,linear
+USA,regional coal,imported coal,share-weight,2050,end-year,0,fixed

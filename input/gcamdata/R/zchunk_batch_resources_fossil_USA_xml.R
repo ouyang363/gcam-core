@@ -133,7 +133,7 @@ module_gcamusa_batch_resources_fossil_USA_xml <- function(command, ...) {
       add_xml_data(L211.RsrcTechChange_USA, "RsrcTechChange") %>%
       add_xml_data(L211.RsrcCalProd_USA, "RsrcCalProd") %>%
       add_xml_data(L211.RsrcCurves_fos_USA, "RsrcCurves") %>%
-      # natural gas production sector
+      # [fossil energy] production sector
       add_logit_tables_xml(L211.Sector_prod_USA, "Supplysector") %>%
       add_logit_tables_xml(L211.Subsector_prod_USA, "SubsectorLogit") %>%
       add_xml_data(L211.SubsShrwtFlt_USA, "SubsectorShrwtFllt") %>%
@@ -144,7 +144,7 @@ module_gcamusa_batch_resources_fossil_USA_xml <- function(command, ...) {
       add_logit_tables_xml(L211.TNGSubsectorLogit, "SubsectorLogit") %>%
       add_xml_data(L211.TNGTechProduction_USA, "Production") %>%
       add_xml_data(L211.TNGTechCoef_USA, "TechCoef") %>%
-      # domestic versus import NG
+      # domestic versus import [fossil energy]
       add_logit_tables_xml(L2262.Supplysector_reg_fos_USA, "Supplysector") %>%
       add_logit_tables_xml(L2262.Subsector_reg_fos_USA, "SubsectorLogit") %>%
       add_xml_data(L2262.PrimaryConsKeyword_reg_fos_USA, "PrimaryConsKeywordff") %>%
