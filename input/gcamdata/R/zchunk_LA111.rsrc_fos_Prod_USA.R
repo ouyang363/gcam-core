@@ -293,6 +293,9 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       mutate(category = gsub("Federal Offshore PADD 5", "Federal Offshore--Alaska and California", category)) %>%
       # filter out aggregated Petroleum Administration for Defense Districts (PADD) regions or national total
       filter(!grepl("PADD|U.S.", category)) %>%
+      # filter Alaska total to avoid double counting
+      # Alaska reports both total and south/north, just need to keep one of them
+      filter(!grepl("Alaska Field Production of Crude Oil thousBBL", category)) %>%
       # clean up columns
       mutate(category = gsub(" Field Production of Crude Oil thousBBL", "", category)) %>%
       mutate(type = if_else(grepl("Offshore", category), "offshore", "onshore")) %>%
