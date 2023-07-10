@@ -253,7 +253,7 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
       select(region, resource, reserve.subresource, year, cal.production) -> L211.RsrcCalProd_USA
 
 
-    # Part 2: Create state regional natural gas sectors which aggregate resource types.
+    # Part 2: Create state regional fossil fuel sectors which aggregate resource types.
     # -------------------------------------------------------------------------------------------
     # 1) reserve.subresource lifetime - follow national assumption
     L211.RsrcCalProd_USA %>%
@@ -576,6 +576,37 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
              tech.share.weight = subs.share.weight) %>%
       select(LEVEL2_DATA_NAMES[["Production"]]) -> L211.TNGTechProduction
 
+    # use production share as the share.weight for subsector and technology
+    # subsector share will split AK vs. lower 48 markets
+    # tech share will split state production within lower 48
+    L211.TNGTechProduction_subsector_share <- L211.TNGTechProduction %>%
+      group_by(region, supplysector, subsector, year) %>%
+      dplyr::summarise(subsector.sum = sum(calOutputValue)) %>%
+      ungroup() %>%
+      group_by(region, supplysector, year) %>%
+      mutate(subsector.share = subsector.sum / sum(subsector.sum)) %>%
+      ungroup() %>%
+      replace_na(list(subsector.share = 0)) %>%
+      select(region, supplysector, subsector, year, subsector.share)
+
+    L211.TNGTechProduction_tech_share <- L211.TNGTechProduction %>%
+      group_by(region, supplysector, subsector, year) %>%
+      mutate(tech.share = calOutputValue / sum(calOutputValue)) %>%
+      ungroup() %>%
+      replace_na(list(tech.share = 0)) %>%
+      select(region, supplysector, subsector, technology, year, tech.share)
+
+    # update share-weight
+    L211.TNGTechProduction_USA <- L211.TNGTechProduction %>%
+      left_join_error_no_match(L211.TNGTechProduction_subsector_share,
+                               by = c("region", "supplysector", "subsector", "year")) %>%
+      left_join_error_no_match(L211.TNGTechProduction_tech_share,
+                               by = c("region", "supplysector", "subsector", "technology", "year")) %>%
+      mutate(subs.share.weight = subsector.share,
+             tech.share.weight = tech.share) %>%
+      select(LEVEL2_DATA_NAMES[["Production"]])
+
+
     L211.TNGTech %>%
       mutate(coefficient = 1) %>%
       select(LEVEL2_DATA_NAMES[["TechCoef"]]) -> L211.TNGTechCoef
@@ -747,7 +778,7 @@ module_gcamusa_L211.resources_fossil_USA <- function(command, ...) {
       same_precursors_as("L211.SubsInterpRule_USA") ->
       L211.TNGSubsectorLogit
 
-    L211.TNGTechProduction %>%
+    L211.TNGTechProduction_USA %>%
       add_title("create the tech to simply pass through state production to USA and calibration technology production") %>%
       add_units("unitless") %>%
       add_comments("create the tech to simply pass through state production to USA and calibration technology production") %>%

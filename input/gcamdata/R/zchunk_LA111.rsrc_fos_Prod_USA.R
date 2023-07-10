@@ -429,14 +429,14 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       mutate(share = eia.prod / eia.total) %>%
       replace_na(list(share = 0)) -> L111.EIA_oil_EJ
 
-    # Obtain GCAM USA data for natural gas production
+    # Obtain GCAM USA data for crude oil production
     L111.Prod_EJ_R_F_Yh %>%
       filter(GCAM_region_ID == gcamusa.USA_REGION_NUMBER, fuel %in% c( "crude oil")) %>%
       group_by(year) %>%
       summarise(us.prod = sum(value)) %>%
       ungroup() -> L111.USA_oil_EJ
 
-    # Use shares to downscale the GCAM USA natural gas production data to states
+    # Use shares to downscale the GCAM USA crude oil production data to states
     L111.EIA_oil_EJ %>%
       left_join_error_no_match(L111.USA_oil_EJ, by = c("year")) %>%
       mutate(value = us.prod * share) %>%
@@ -496,7 +496,7 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       summarise(us.prod = sum(value)) %>%
       ungroup() -> L111.USA_coal_EJ
 
-    # Use shares to downscale the GCAM USA natural gas production data to states
+    # Use shares to downscale the GCAM USA coal production data to states
     L111.EIA_coal_EJ %>%
       left_join_error_no_match(L111.USA_coal_EJ, by = c("year")) %>%
       mutate(value = us.prod * share) %>%
@@ -596,6 +596,8 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
     additional_gas_supply_states <- distinct(L111.additional_gas_supply_downscale %>% select(region))
 
     L111.RsrcCurves_EJ_R_gas_additional %>%
+      # drop the highest zero-available for now, which will be add later together
+      filter(available > 0) %>%
       repeat_add_columns(additional_gas_supply_states) %>%
       left_join_error_no_match(L111.additional_gas_supply_downscale, by = c("region")) %>%
       mutate(available = available * share) %>%
@@ -661,7 +663,7 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       select(region = state, resource, reserve.subresource, grade, value) %>%
       spread(grade, value)
 
-    # combine with onshore and offshore gas supply
+    # combine with onshore and offshore oil supply
     L111.oil_supply_state_T_EJ_onshore_wide %>%
       bind_rows(L111.oil_supply_state_T_EJ_offshore_wide) -> L111.oil_supply_state_T_EJ_wide
 
@@ -703,6 +705,8 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
     additional_oil_supply_states <- distinct(L111.additional_oil_supply_downscale %>% select(region))
 
     L111.RsrcCurves_EJ_R_oil_additional %>%
+      # drop the highest zero-available for now, which will be add later together
+      filter(available > 0) %>%
       repeat_add_columns(additional_oil_supply_states) %>%
       left_join_error_no_match(L111.additional_oil_supply_downscale, by = c("region")) %>%
       mutate(available = available * share) %>%
@@ -732,7 +736,34 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       mutate(resource = "coal") %>%
       # convert short ton coal (of equivalent) to EJ
       mutate(value = value * CONV_TCE_EJ * 1e6) %>%
-      select(region = state, resource, reserve.subresource, type, value) -> L111.coal_supply_state_T_EJ
+      select(region = state, resource, reserve.subresource, type, value) -> L111.coal_supply_state_T_EJ_raw
+
+    # special treatment of Arizona: non-zero historical production but zero supply
+    # ----------------
+    # fill in zero supply for all these higher grades, and then just add grade.hist later to cover its historical supply
+    # Special case of AZ: Arizona has no current coal production.
+    # However, areas in the northeastern part of the state on the Navajo and Hopi reservations and in east-central Arizona
+    # have some coal.104 The state's last coal mine, the Kayenta mine, ceased operations in 2019 because its only customer,
+    # the coal-fired Navajo Generating Station, closed.
+    # source: https://www.eia.gov/state/print.php?sid=AZ
+    NoFutureCoal_states <- L111.coal_production_states_EJ %>%
+      anti_join(L111.coal_supply_state_T_EJ_raw, by = c("region", "resource", "reserve.subresource")) %>%
+      group_by(region, resource, reserve.subresource) %>%
+      summarise(value = sum(value)) %>%
+      ungroup() %>%
+      filter(value > 0) %>%
+      select(-value)
+
+    L111.coal_supply_state_T_EJ_nofuture <- NoFutureCoal_states %>%
+      # use left_join as number of rows will change
+      # need to map all three types: recoverable, estimated.recoverable, and estimated.recoverable
+      left_join(L111.coal_supply_state_T_EJ_raw %>% select(resource, reserve.subresource, type) %>% distinct(),
+                by = c("resource", "reserve.subresource")) %>%
+      mutate(value = 0)
+
+    # combine with the original supply table
+    L111.coal_supply_state_T_EJ <- bind_rows(L111.coal_supply_state_T_EJ_raw,
+                                             L111.coal_supply_state_T_EJ_nofuture)
 
     # here we assume the following direct mapping from EIA definition to GCAM grades
     # Recoverable Coal Reserves at Producing Mines - grade 1
@@ -777,10 +808,12 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       mutate(grade = paste("grade", grade, sep = ' ')) ->
       L111.RsrcCurves_EJ_R_coal_additional
 
-    # Apply state shares to remaining natural gas resources
+    # Apply state shares to remaining coal resources
     additional_coal_supply_states <- distinct(L111.additional_coal_supply_downscale %>% select(region))
 
     L111.RsrcCurves_EJ_R_coal_additional %>%
+      # drop the highest zero-available for now, which will be add later together
+      filter(available > 0) %>%
       repeat_add_columns(additional_coal_supply_states) %>%
       left_join_error_no_match(L111.additional_coal_supply_downscale, by = c("region")) %>%
       mutate(available = available * share) %>%
@@ -802,7 +835,6 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
         select(-grade.order)
       return(df_grade)
     }
-
 
     # resource curve
     # First need to specify resource costs
@@ -906,7 +938,7 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
         grepl("conventional", type) ~ "onshore conventional oil",
         T ~ "onshore unconventional oil"
       )) %>%
-      # take the average of the different unconventional gas types as the cost for unconventional natural gas
+      # take the average of the different unconventional gas types as the cost for unconventional oil
       group_by(reserve.subresource) %>%
       summarise(low_cost = mean(low_cost),
                 high_cost = mean(high_cost)) %>%
@@ -975,7 +1007,7 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       mutate(quantity = quantity * CONV_MBBL_EJ * 1e3,
              price = (price * gdp_deflator(1975, 2005)) / (CONV_MMCF_EJ * 1e6) ) -> L111.GradeCost.offshore.detailed.oil
 
-    # NOTE:  compute_offshore_costs FUNCTION MUST BE RE-WRITTEN BEFORE THIS CAN BE RE-WRITTEN IN DPLYR
+    # NOTE:  compute_offshore_costs CAN BE RE-WRITTEN IN DPLYR
     L111.GradeCost.offshore.oil <- compute_offshore_costs( L111.oil_supply_state_T_EJ_offshore_wide,
                                                            L111.GradeCost.offshore.detailed.oil ) %>%
       mutate(reserve.subresource = "offshore oil")
@@ -1003,7 +1035,7 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
         type == "lignite" ~ "surface mining",
         type == "hard coal" ~ "underground mining"
       )) %>%
-      # take the average of the different unconventional gas types as the cost for unconventional natural gas
+      # take the average of the different coal mining types
       group_by(reserve.subresource) %>%
       summarise(low_cost = mean(low_cost),
                 high_cost = mean(high_cost)) %>%
@@ -1183,7 +1215,6 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
       # keep resource curve for states with historical productions
       filter(region %in% unique(L111.oil_production_states_EJ$region))
 
-
     # 4c) coal
     L111.coal_production_states_EJ %>%
       filter(year %in% MODEL_BASE_YEARS) %>%
@@ -1229,9 +1260,26 @@ module_gcamusa_LA111.rsrc_fos_Prod_USA <- function(command, ...) {
     # extra filter to make sure keep coal to only coal-producing states
     L111.coal_production_states_EJ <- L111.coal_production_states_EJ %>% filter(region %in% unique(L111.ResCurve.coal$region))
 
-    L111.ResCurves_EJ_R_Ffos_USA <- bind_rows(L111.ResCurve.gas, L111.ResCurve.oil, L111.ResCurve.coal)
     L111.Prod_EJ_R_F_Yh_USA <- bind_rows(L111.gas_production_states_EJ, L111.oil_production_states_EJ, L111.coal_production_states_EJ)
 
+    # combine all resource curve first
+    L111.ResCurves_EJ_R_Ffos_USA_combined <- bind_rows(L111.ResCurve.gas, L111.ResCurve.oil, L111.ResCurve.coal)
+
+    # create a "highest grade" with zero available
+    L111.ResCurves_EJ_R_Ffos_USA_highest <- L111.ResCurves_EJ_R_Ffos_USA_combined %>%
+      filter(grade != "grade.hist") %>%
+      group_by(region, resource, reserve.subresource) %>%
+      slice(n()) %>%
+      ungroup() %>%
+      # increase to the next grade
+      mutate(grade = paste0("grade.", 1 + as.integer(gsub("grade.", "", grade)))) %>%
+      # make cost slightly higher (e.g., 10%) and zero available
+      mutate(available = 0, extractioncost = extractioncost * 1.1)
+
+    # combine with the original curve
+    L111.ResCurves_EJ_R_Ffos_USA <- bind_rows(L111.ResCurves_EJ_R_Ffos_USA_combined,
+                                              L111.ResCurves_EJ_R_Ffos_USA_highest) %>%
+      arrange(region, resource, reserve.subresource)
 
     # ===================================================
     # Produce outputs

@@ -194,6 +194,8 @@ module_energy_batch_en_supply_xml <- function(command, ...) {
     # YO test Jan 10
     # YO test May 29
     # YO test Jun 11
+
+    # for "traded XXX"
     L239.TechCoef_tra_US_reg <- L239.TechCoef_tra %>%
       mutate(minicam.energy.input = ifelse(technology == "USA traded natural gas",
                                            "natural gas production", minicam.energy.input)) %>%
@@ -201,6 +203,17 @@ module_energy_batch_en_supply_xml <- function(command, ...) {
                                            "crude oil production", minicam.energy.input)) %>%
       mutate(minicam.energy.input = ifelse(technology == "USA traded coal",
                                            "coal production", minicam.energy.input))
+
+    # for "domestic XXX"
+    L239.TechCoef_reg_US_reg <- L239.TechCoef_reg %>%
+      mutate(minicam.energy.input = ifelse(region == "USA" & technology == "domestic natural gas",
+                                           "natural gas production", minicam.energy.input)) %>%
+      mutate(minicam.energy.input = ifelse(region == "USA" & technology == "domestic crude oil",
+                                           "crude oil production", minicam.energy.input)) %>%
+      mutate(minicam.energy.input = ifelse(region == "USA" & technology == "domestic coal",
+                                           "coal production", minicam.energy.input))
+
+
 
 
     create_xml("en_supply_US_reg.xml") %>%
@@ -252,12 +265,14 @@ module_energy_batch_en_supply_xml <- function(command, ...) {
       add_logit_tables_xml(L239.SubsectorAll_tra, "SubsectorAllTo", base_logit_header = "SubsectorLogit") %>%
       add_xml_data(L239.TechShrwt_tra, "TechShrwt") %>%
       add_xml_data(L239.TechCost_tra, "TechCost") %>%
+      # updated into US regional fossil fuel
       add_xml_data(L239.TechCoef_tra_US_reg, "TechCoef") %>%
       add_xml_data(L239.Production_tra, "Production") %>%
       add_logit_tables_xml(L239.Supplysector_reg, "Supplysector") %>%
       add_logit_tables_xml(L239.SubsectorAll_reg, "SubsectorAllTo", base_logit_header = "SubsectorLogit") %>%
       add_xml_data(L239.TechShrwt_reg, "TechShrwt") %>%
-      add_xml_data(L239.TechCoef_reg, "TechCoef") %>%
+      # updated into US regional fossil fuel
+      add_xml_data(L239.TechCoef_reg_US_reg, "TechCoef") %>%
       add_xml_data(L239.Production_reg_imp, "Production") %>%
       add_xml_data(L239.Production_reg_dom, "Production") %>%
       add_xml_data(L239.Consumption_intraregional, "Production") %>%

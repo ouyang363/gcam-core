@@ -32,10 +32,8 @@ module_gcamusa_L2262.regional_fossil_USA <- function(command, ...) {
              FILE = "gcam-usa/A10.fossil_subsector_shrwt_interp",
              FILE = 'gcam-usa/A10.fossil_subsector_shrwt_interpto',
              FILE = "gcam-usa/A10.fossil_tech_associations",
-             "L111.Prod_EJ_R_F_Yh_USA",
-             "L222.StubTechProd_gasproc",
-             "L222.StubTechProd_refining",
-             "L222.StubTechCoef_refining",
+             "L239.Production_reg_dom",
+             "L239.Production_reg_imp",
              "L239.PrimaryConsKeyword_en"))
   } else if(command == driver.DECLARE_OUTPUTS) {
     return(c("L2262.DeleteRsrc_fos_USA",
@@ -70,10 +68,8 @@ module_gcamusa_L2262.regional_fossil_USA <- function(command, ...) {
     A10.fossil_subsector_shrwt_interpto <- get_data(all_data, "gcam-usa/A10.fossil_subsector_shrwt_interpto", strip_attributes = TRUE)
     A10.fossil_tech_associations <- get_data(all_data, "gcam-usa/A10.fossil_tech_associations", strip_attributes = TRUE)
 
-    L111.Prod_EJ_R_F_Yh_USA <- get_data(all_data, "L111.Prod_EJ_R_F_Yh_USA", strip_attributes = TRUE)
-    L222.StubTechProd_gasproc <- get_data(all_data, "L222.StubTechProd_gasproc", strip_attributes = TRUE)
-    L222.StubTechProd_refining <- get_data(all_data, "L222.StubTechProd_refining", strip_attributes = TRUE)
-    L222.StubTechCoef_refining <- get_data(all_data, "L222.StubTechCoef_refining", strip_attributes = TRUE)
+    L239.Production_reg_dom <- get_data(all_data, "L239.Production_reg_dom", strip_attributes = TRUE)
+    L239.Production_reg_imp <- get_data(all_data, "L239.Production_reg_imp", strip_attributes = TRUE)
     L239.PrimaryConsKeyword_en <- get_data(all_data, "L239.PrimaryConsKeyword_en", strip_attributes = TRUE)
 
     # ===================================================
@@ -114,76 +110,11 @@ module_gcamusa_L2262.regional_fossil_USA <- function(command, ...) {
     L2262.SubsectorShrwtInterp_reg_fos_USA <- set_years(A10.fossil_subsector_shrwt_interp)
     L2262.SubsectorShrwtInterpTo_reg_fos_USA <- set_years(A10.fossil_subsector_shrwt_interpto)
 
-    # Provide calOutputValue for "regional [fossil resource]" market
-    L111.Prod_EJ_R_F_Yh_USA %>%
-      mutate(region = "USA") %>%
-      group_by(region, resource, year) %>%
-      summarise(calOutputValue = sum(value)) %>%
-      ungroup() %>%
-      # create a temp variable for mapping
-      mutate(subsector = case_when(
-        resource == "crude oil" ~ "domestic oil",
-        resource == "natural gas" ~ "domestic natural gas",
-        resource == "coal" ~ "domestic coal"
-      )) %>%
-      left_join_error_no_match(A10.fossil_tech_associations %>% filter(grepl("domestic", subsector)) %>%
-                                 mutate(region = "USA"), by = c("region", "subsector")) %>%
-      select(region, supplysector, subsector, stub.technology, year, calOutputValue) -> L2262.CalOutput_dom_fos
-
-    # update gas processing sector
-    L222.StubTechProd_gasproc %>%
-      filter(region == "USA", subsector == "natural gas") %>%
-      rename(share.weight.year = year.share.weight) %>%
-      left_join_keep_first_only(L2262.CalOutput_dom_fos %>%
-                                  filter(stub.technology == "domestic natural gas") %>%
-                                  rename(domNG = calOutputValue) %>%
-                                  select(region, year, domNG),
-                                by = c("region", "year")) %>%
-      mutate(calOutputValue = calOutputValue - domNG) %>%
-      select(-domNG) -> L2262.Demand_impNG
-
-    A10.fossil_tech_associations %>%
-      select(supplysector, subsector, stub.technology) %>%
-      filter(subsector == "imported natural gas") %>%
-      repeat_add_columns(tibble("year" = MODEL_BASE_YEARS)) %>%
-      left_join_error_no_match(L2262.Demand_impNG %>% select(region, year, calOutputValue), by = c("year")) ->
-      L2262.CalOutput_impNG
-
-    # update oil processing sector
-    L222.StubTechProd_refining %>%
-      filter(region == "USA", subsector == "oil refining") %>%
-      rename(share.weight.year = year.share.weight) %>%
-      # for oil refinery, there is a conversion loss in the refinery sector, so backward calculate oil input to the refinery sector
-      # input = output * coefficient
-      left_join_error_no_match(L222.StubTechCoef_refining %>%
-                                 filter(region == "USA" & minicam.energy.input == "regional oil") %>%
-                                 select(year, coefficient), by = "year") %>%
-      mutate(calOutputValue = calOutputValue * coefficient) %>%
-      # then subtract domestic production to obain imported values
-      left_join_keep_first_only(L2262.CalOutput_dom_fos %>%
-                                  filter(stub.technology == "domestic oil") %>%
-                                  rename(domOL = calOutputValue) %>%
-                                  select(region, year, domOL),
-                                by = c("region", "year")) %>%
-      mutate(calOutputValue = calOutputValue - domOL) %>%
-      select(-domOL) -> L2262.Demand_impOL
-
-    A10.fossil_tech_associations %>%
-      select(supplysector, subsector, stub.technology) %>%
-      filter(subsector == "imported oil") %>%
-      repeat_add_columns(tibble("year" = MODEL_BASE_YEARS)) %>%
-      left_join_error_no_match(L2262.Demand_impOL %>% select(region, year, calOutputValue), by = c("year")) ->
-      L2262.CalOutput_impOL
-
-    # combine imported with domestic production
-    L2262.CalOutput_dom_fos %>%
-      bind_rows(L2262.CalOutput_impNG) %>%
-      bind_rows(L2262.CalOutput_impOL) %>%
-      filter(year %in% MODEL_BASE_YEARS) %>%
-      mutate(share.weight.year = year) %>%
-      mutate(subs.share.weight = 1) %>%
-      mutate(tech.share.weight = 1) %>%
-      mutate(calOutputValue = round(calOutputValue, 7)) -> L2262.StubTechProd_reg_fos_USA
+    # re-create regional fossil fuel markets, copy same values from the global table for the region USA only
+    L2262.StubTechProd_reg_fos_USA <- bind_rows(L239.Production_reg_dom,
+                                                L239.Production_reg_imp) %>%
+      filter(region == "USA") %>%
+      rename(stub.technology = technology)
 
     # Global technology databases for USA domestic [fossil resource] and imported [fossil resource]
     A10.fossil_tech_associations %>%
@@ -203,7 +134,7 @@ module_gcamusa_L2262.regional_fossil_USA <- function(command, ...) {
       select(LEVEL2_DATA_NAMES[["PrimaryConsKeywordff"]]) ->
       L2262.PrimaryConsKeyword_reg_fos_USA
 
-    # Share-weights for USA regional natural gas technologies
+    # Share-weights for USA regional fossil resource technologies
     A10.fossil_tech_associations %>%
       repeat_add_columns(tibble("year" = MODEL_BASE_YEARS)) %>%
       rename(technology = stub.technology) %>%
@@ -255,11 +186,8 @@ module_gcamusa_L2262.regional_fossil_USA <- function(command, ...) {
       add_title("Provide calOutputValue for regional natural gas market") %>%
       add_units("EJ") %>%
       add_comments("Provide calOutputValue for regional natural gas market") %>%
-      add_precursors("gcam-usa/A10.fossil_tech_associations",
-                     "L111.Prod_EJ_R_F_Yh_USA",
-                     "L222.StubTechProd_gasproc",
-                     "L222.StubTechProd_refining",
-                     "L222.StubTechCoef_refining") ->
+      add_precursors("L239.Production_reg_dom",
+                     "L239.Production_reg_imp") ->
       L2262.StubTechProd_reg_fos_USA
 
     L2262.TechCoef_reg_fos_USA %>%
